@@ -55,6 +55,107 @@
   }
   #downloadBtn:hover { background: #234b71; }
   #downloadBtn:disabled { opacity: 0.6; cursor: default; }
+  .dropdown { position: relative; display: inline-block; }
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+    min-width: 190px;
+    overflow: hidden;
+    z-index: 100;
+  }
+  .dropdown-menu.open { display: block; }
+  .dropdown-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 11px 16px;
+    font-size: 13.5px;
+    color: var(--navy);
+    cursor: pointer;
+  }
+  .dropdown-menu button:hover { background: #F0F4F8; }
+  .dropdown-menu button + button { border-top: 1px solid var(--border); }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 20, 26, 0.55);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: #fff;
+    border-radius: 10px;
+    width: 92%;
+    max-width: 560px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 22px 24px;
+  }
+  .modal-box h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    color: var(--navy);
+  }
+  .modal-box .modal-sub {
+    font-size: 12.5px;
+    color: #778;
+    margin: 0 0 16px;
+  }
+  .modal-section {
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    margin-top: 14px;
+  }
+  .modal-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  .modal-section label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .modal-section p.desc {
+    font-size: 12px;
+    color: #778;
+    margin: 0 0 8px;
+  }
+  #jsonPasteArea {
+    width: 100%;
+    min-height: 120px;
+    font-family: Consolas, Menlo, monospace;
+    font-size: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    resize: vertical;
+  }
+  .modal-btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .modal-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--navy);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .modal-btn:hover { background: #F0F4F8; }
+  .modal-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .modal-btn.primary:hover { background: #234b71; }
+  .modal-close-row { text-align: right; margin-top: 18px; }
   #status {
     font-size: 12.5px;
     color: #B9C4D0;
@@ -163,81 +264,117 @@
     <h1>Resume Builder</h1>
     <p id="status">Edit any field below, then download your updated files.</p>
   </div>
-  <button id="downloadBtn">Download All (.zip)</button>
+  <div style="display:flex; gap:10px; align-items:center;">
+    <input type="file" id="jsonUpload" accept="application/json" style="display:none">
+    <button id="uploadJsonBtn" style="background:transparent; color:#fff; border:1px solid #55606c; padding:10px 16px; border-radius:6px; font-size:13.5px; cursor:pointer;">Upload / Copy JSON</button>
+    <div class="dropdown">
+      <button id="downloadBtn">Download ▾</button>
+      <div class="dropdown-menu" id="downloadMenu">
+        <button id="dlPdf">Download PDF</button>
+        <button id="dlDocx">Download DOCX</button>
+        <button id="dlJson">Download JSON</button>
+      </div>
+    </div>
+  </div>
 </header>
 
 <main id="app"></main>
+
+<div class="modal-overlay" id="jsonModal">
+  <div class="modal-box">
+    <h3>Upload / Copy JSON</h3>
+    <p class="modal-sub">Load resume data from a file, paste it directly, copy out what's currently in the form, or grab a sample to see the expected format.</p>
+
+    <div class="modal-section">
+      <label>Upload a file</label>
+      <p class="desc">Choose a resume-data.json file saved earlier.</p>
+      <button class="modal-btn" id="modalChooseFileBtn">Choose File…</button>
+      <span id="modalFileName" style="font-size:12px; color:#778; margin-left:8px;"></span>
+    </div>
+
+    <div class="modal-section">
+      <label>Or paste JSON here</label>
+      <p class="desc">Paste JSON text directly, then click Load. You can also copy the form's current data into this box to edit and reload it.</p>
+      <textarea id="jsonPasteArea" spellcheck="false" placeholder="{ &quot;name&quot;: &quot;...&quot;, ... }"></textarea>
+      <div class="modal-btn-row">
+        <button class="modal-btn primary" id="loadPastedJsonBtn">Load Pasted JSON</button>
+        <button class="modal-btn" id="copyCurrentJsonBtn">Copy Current Data In</button>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <label>Need the format?</label>
+      <p class="desc">Download a sample JSON file with fictional placeholder data, showing the exact structure the form expects.</p>
+      <button class="modal-btn" id="downloadSampleJsonBtn">Download Sample JSON</button>
+    </div>
+
+    <div class="modal-close-row">
+      <button class="modal-btn" id="closeJsonModalBtn">Close</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 /* ---------------------------------------------------------------------
-   1. STATE — pre-filled with the current resume
+   1. STATE — starts empty; fill in the form or upload a JSON file
 --------------------------------------------------------------------- */
 let resumeData = {
-  name: "ADITYA KUMAR SINGH",
-  title: "SENIOR FLUTTER DEVELOPER",
-  location: "Ambala City, Haryana, India",
-  phone: "+91-8168724284",
-  email: "adityakumars064@gmail.com",
-  portfolioUrl: "https://www.adityaaks.com",
-  linkedinUrl: "https://www.linkedin.com/in/adityakumars064/",
-  summary: "Flutter Developer with 4+ years of experience designing, developing, and deploying cross-platform mobile and web applications for iOS, Android, and government digital platforms. Proficient in Dart, GetX state management, Firebase, RESTful API integration, Bluetooth Low Energy (BLE), real-time messaging (Sockets/Pusher), payment gateway and in-app purchase integration, ML Kit, and offline-first architecture using SQLite. Proven track record of taking ownership of escalated modules and delivering production-ready features on schedule — from enterprise mobile apps to state government enforcement systems and civic platforms serving over 2 lakh users.",
+  name: "",
+  title: "",
+  location: "",
+  phone: "",
+  email: "",
+  portfolioUrl: "",
+  linkedinUrl: "",
+  summary: "",
+  skills: [],
+  experience: [],
+  projects: [],
+  education: [],
+  awards: []
+};
+
+/* ---------------------------------------------------------------------
+   1b. SAMPLE DATA — fully fictional, used only for "Download Sample JSON"
+--------------------------------------------------------------------- */
+const sampleResumeData = {
+  name: "JORDAN A. RIVERA",
+  title: "SENIOR BACKEND DEVELOPER",
+  location: "Springfield, IL, USA",
+  phone: "+1-555-0142",
+  email: "jordan.rivera@example.com",
+  portfolioUrl: "https://jordanrivera.example.com",
+  linkedinUrl: "https://www.linkedin.com/in/jordan-rivera-example/",
+  summary: "Backend Developer with 5+ years of experience designing and scaling REST and GraphQL APIs for e-commerce and fintech platforms. Skilled in Node.js, PostgreSQL, and distributed systems, with a track record of reducing latency and leading small engineering teams through production incidents.",
   skills: [
-    { label: "Mobile Development", items: "Flutter, Dart, FlutterFlow, GetX (State Management), Cross-Platform iOS & Android Development, Responsive UI, Offline-First Architecture, Multi-Flavor / White-Label Builds, Localization (Multi-Language Support)" },
-    { label: "Real-time & Backend", items: "Socket.IO / Pusher (Real-Time Chat), Firebase (Auth, Firestore, Cloud Messaging), RESTful API Integration, Bluetooth Low Energy (BLE), SQLite" },
-    { label: "AI & Media", items: "ML Kit Integration, Text-to-Speech (TTS)" },
-    { label: "Payments & Commerce", items: "Payment Gateway Integration (Stripe, Razorpay, PayPal), In-App Purchase (IAP)" },
-    { label: "Maps & Location", items: "Real-Time Location Tracking, Turn-by-Turn Navigation, GPX Location Tracking (Foreground & Background), Interactive Map Integration" },
-    { label: "Auth & Notifications", items: "Push Notifications (Web & Mobile), Social Login (OAuth)" },
-    { label: "Tools & Practices", items: "Git, App Store & Google Play Deployment, Agile / Scrum" }
+    { label: "Backend Development", items: "Node.js, Express, GraphQL, REST APIs, Microservices" },
+    { label: "Databases", items: "PostgreSQL, MongoDB, Redis" },
+    { label: "Cloud & DevOps", items: "AWS (EC2, S3, Lambda), Docker, Kubernetes, CI/CD" },
+    { label: "Tools & Practices", items: "Git, Jest, Agile / Scrum" }
   ],
   experience: [
-    { title: "Software Engineer (Flutter Developer)", company: "Virtual Employee Pvt. Ltd.", dates: "Aug 2025 – Present", bullets: [
-      "Developed a crash/hazard-reporting mobile application with interactive mapping, enabling nearby tow truck drivers to locate and respond to incidents in real time.",
-      "Built a complete turn-by-turn navigation module integrating real-time routing, live location tracking, and map-based guidance for tow truck drivers.",
-      "Took ownership of an escalated project module, resolved critical defects, and delivered the feature on schedule while meeting all quality requirements."
+    { title: "Senior Backend Developer", company: "Example Fintech Inc.", dates: "Mar 2022 – Present", bullets: [
+      "Led migration of a monolithic payments service into microservices, reducing average response time by 35%.",
+      "Designed a rate-limiting layer that cut fraudulent transaction attempts by 60%.",
+      "Mentored two junior engineers and introduced a code review checklist adopted team-wide."
     ]},
-    { title: "Flutter Developer", company: "Esferasoft Solutions Pvt. Ltd.", dates: "Apr 2024 – Aug 2025", bullets: [
-      "Built a FlutterFlow-based mobile application integrating Bluetooth Low Energy (BLE) devices, supporting real-time data read/write operations.",
-      "Implemented group and one-to-one chat functionality using socket-based real-time messaging.",
-      "Developed an integrated video and audio player with mini-player mode and background playback controls.",
-      "Engineered background location-tracking functionality, capturing GPS coordinates and speed data into GPX files in both foreground and background states."
-    ]},
-    { title: "Flutter Developer", company: "Webguruz Technologies Pvt. Ltd.", dates: "Jun 2023 – Apr 2024", bullets: [
-      "Developed a dynamic survey application supporting offline form completion with local database storage and automatic sync on network reconnection.",
-      "Implemented group and private chat via sockets, plus live game-activity tracking (goals, cards, timeouts) for a football-focused application.",
-      "Built background/foreground location and speed-tracking functionality, exporting data to GPX files."
-    ]},
-    { title: "Software Engineer (Flutter Developer)", company: "Toxsl Technologies Pvt. Ltd.", dates: "Jan 2022 – Jun 2023", bullets: [
-      "Designed and developed multiple production applications across Real Estate, Job Assignment, Service Booking, and Car Rental domains.",
-      "Integrated third-party APIs, push notifications, and social login (OAuth) using GetX state management.",
-      "Implemented secure payment gateway integration for seamless in-app transactions.",
-      "Awarded \u201cRising Star\u201d for the January–March 2022 quarter for outstanding contribution."
+    { title: "Backend Developer", company: "Sample Commerce Co.", dates: "Jul 2019 – Feb 2022", bullets: [
+      "Built and maintained REST APIs powering a checkout flow handling 10,000+ daily transactions.",
+      "Implemented caching with Redis, reducing database load by 40% during peak sales events."
     ]}
   ],
   projects: [
-    { name: "Mines Transport Tracking", description: "A secure digital enforcement application built for the Government of Haryana to prevent illegal mining and eliminate Ravana (weighment) duplicacy. Delivered in coordination with DIO, Yamuna Nagar, Haryana and the Dept. of IT, Electronics & Communication, Haryana.",
-      links: [ { label: "App Store", url: "https://apps.apple.com/in/app/minestransporttracking/id6760101532" }, { label: "Google Play", url: "https://play.google.com/store/apps/details?id=com.app.mines_transport_tracking&hl=en_IN" } ] },
-    { name: "Run Against Drugs – Yamuna Nagar", description: "An official marathon registration platform built for the District Administration, Yamuna Nagar, Haryana — processing 1.25+ lakh registrations with Razorpay payment integration for 10km category entries, admin reporting, and downloadable e-certificates for participants.",
-      links: [ { label: "Website", url: "https://runagainstdrugsynr.in/" } ] },
-    { name: "Run Against Drugs – Rewari", description: "A companion marathon registration platform for the District Administration, Rewari, Haryana, replicating the Yamuna Nagar system — processing 80,000+ registrations with Razorpay payments for 10km category entries, admin reporting, and downloadable e-certificates.",
-      links: [ { label: "Website", url: "https://www.runagainstdrugsrwr.in/" } ] },
-    { name: "Oldies Eyes", description: "An accessibility app that turns a smartphone into a talking magnifying glass — auto-scanning printed text (menus, labels, letters) and reading it aloud with synchronized word highlighting and multi-language translation, designed for seniors and users with vision impairment.",
-      links: [ { label: "App Store", url: "https://apps.apple.com/in/app/oldies-eyes/id6758658853" }, { label: "Google Play", url: "https://play.google.com/store/apps/details?id=com.app.oldies_eye&pcampaignid=web_share" } ] },
-    { name: "Link 2 Instructor", description: "A driving-instructor business platform for managing lesson bookings, calendar-based availability, in-app messaging, payments, and income tracking.",
-      links: [ { label: "App Store", url: "https://apps.apple.com/in/app/link-2-instructor/id6764334328" } ] },
-    { name: "Link 2 Learner", description: "A driving-lesson booking app connecting learners with instructors for scheduling, secure prepayment, in-app messaging, and progress tracking toward their driving test.",
-      links: [ { label: "App Store", url: "https://apps.apple.com/in/app/link-2-learner/id6764585328" } ] },
-    { name: "Nourish Mama", description: "A postpartum wellness app for new mothers offering AI-powered meal scanning, mood and energy check-ins, and gentle, personalized meal suggestions — without calorie counting or rigid diet plans.",
-      links: [ { label: "App Store", url: "https://apps.apple.com/in/app/nourish-mama/id6746253205" } ] }
+    { name: "Sample Inventory Tracker", description: "An internal tool for tracking warehouse stock levels in real time, built with Node.js and PostgreSQL.",
+      links: [ { label: "Website", url: "https://example.com/inventory-tracker" } ] },
+    { name: "Sample Budgeting App", description: "A personal finance app helping users track spending and set monthly budgets.",
+      links: [ { label: "App Store", url: "https://apps.apple.com/example" }, { label: "Google Play", url: "https://play.google.com/example" } ] }
   ],
   education: [
-    { degree: "Bachelor of Technology, Computer Science Engineering", dates: "2018 – 2022", school: "Rayat Bahra University, Mohali — 74.6%" },
-    { degree: "Senior Secondary (XII), Science", dates: "2018", school: "Govt. Sr. Sec. School, Prem Nagar — 53.00%" },
-    { degree: "Secondary (X)", dates: "2016", school: "Police DAV Public School, Ambala City — CGPA 8.20/10" }
+    { degree: "Bachelor of Science, Computer Science", dates: "2015 – 2019", school: "State University of Example — GPA 3.6/4.0" }
   ],
-  awards: [ "\u201cRising Star\u201d Award — Toxsl Technologies Pvt. Ltd. (Q1 2022)" ]
+  awards: [ "\u201cSpot Award\u201d for Incident Response Leadership — Example Fintech Inc. (2023)" ]
 };
 
 /* ---------------------------------------------------------------------
@@ -269,6 +406,96 @@ function removeEdu(i) { resumeData.education.splice(i, 1); render(); }
 function updateAward(i, value) { resumeData.awards[i] = value; }
 function addAward() { resumeData.awards.push(""); render(); }
 function removeAward(i) { resumeData.awards.splice(i, 1); render(); }
+
+/* ---------------------------------------------------------------------
+   2b. JSON IMPORT
+--------------------------------------------------------------------- */
+function normalizeData(parsed) {
+  const defaults = {
+    name: "", title: "", location: "", phone: "", email: "",
+    portfolioUrl: "", linkedinUrl: "", summary: "",
+    skills: [], experience: [], projects: [], education: [], awards: []
+  };
+  const merged = Object.assign({}, defaults, parsed || {});
+  ["skills", "experience", "projects", "education", "awards"].forEach((k) => {
+    if (!Array.isArray(merged[k])) merged[k] = [];
+  });
+  merged.experience.forEach((job) => {
+    if (!Array.isArray(job.bullets)) job.bullets = [];
+  });
+  merged.projects.forEach((p) => {
+    if (!Array.isArray(p.links)) p.links = [];
+  });
+  return merged;
+}
+
+document.getElementById("uploadJsonBtn").addEventListener("click", () => {
+  document.getElementById("jsonModal").classList.add("open");
+});
+document.getElementById("closeJsonModalBtn").addEventListener("click", () => {
+  document.getElementById("jsonModal").classList.remove("open");
+});
+document.getElementById("jsonModal").addEventListener("click", (e) => {
+  if (e.target.id === "jsonModal") document.getElementById("jsonModal").classList.remove("open");
+});
+
+document.getElementById("modalChooseFileBtn").addEventListener("click", () => {
+  document.getElementById("jsonUpload").click();
+});
+document.getElementById("jsonUpload").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      resumeData = normalizeData(parsed);
+      render();
+      document.getElementById("modalFileName").textContent = "Loaded: " + file.name;
+      document.getElementById("status").textContent = "Loaded data from " + file.name;
+      document.getElementById("jsonModal").classList.remove("open");
+    } catch (err) {
+      document.getElementById("modalFileName").textContent = "Error: " + err.message;
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+document.getElementById("loadPastedJsonBtn").addEventListener("click", () => {
+  const text = document.getElementById("jsonPasteArea").value.trim();
+  if (!text) {
+    document.getElementById("status").textContent = "Paste some JSON first.";
+    return;
+  }
+  try {
+    const parsed = JSON.parse(text);
+    resumeData = normalizeData(parsed);
+    render();
+    document.getElementById("status").textContent = "Loaded pasted JSON.";
+    document.getElementById("jsonModal").classList.remove("open");
+  } catch (err) {
+    document.getElementById("status").textContent = "Could not parse pasted JSON: " + err.message;
+  }
+});
+
+document.getElementById("copyCurrentJsonBtn").addEventListener("click", async () => {
+  const text = JSON.stringify(resumeData, null, 2);
+  document.getElementById("jsonPasteArea").value = text;
+  try {
+    await navigator.clipboard.writeText(text);
+    document.getElementById("status").textContent = "Current data copied to clipboard and filled into the box below.";
+  } catch (err) {
+    document.getElementById("status").textContent = "Current data filled into the box below (clipboard copy not available).";
+  }
+});
+
+document.getElementById("downloadSampleJsonBtn").addEventListener("click", () => {
+  const text = JSON.stringify(sampleResumeData, null, 2);
+  const blob = new Blob([text], { type: "application/json" });
+  triggerDownload(blob, "sample-resume-data.json");
+  document.getElementById("status").textContent = "Downloaded sample-resume-data.json";
+});
 
 /* ---------------------------------------------------------------------
    3. RENDER FORM
@@ -378,12 +605,26 @@ function render() {
     </div>`;
   });
   html += `<button class="add" onclick="addAward()">+ Add award</button>
-    <p class="hint">Downloads a DOCX, a PDF, and a Node.js generator script (build_resume.js) as one ZIP file — matching everything currently in this form.</p>
+    <p class="hint">Click "Download" to choose PDF, DOCX, or JSON individually. Empty fields and sections you leave blank are simply skipped in the output. Use "Upload JSON" at the top to reload a previously saved resume-data.json.</p>
   </div>`;
 
   document.getElementById("app").innerHTML = html;
 }
 render();
+
+/* ---------------------------------------------------------------------
+   3b. SHARED HELPERS
+--------------------------------------------------------------------- */
+function getContactLineParts(data) {
+  const plain = [data.location, data.phone, data.email].filter((v) => v && v.trim());
+  return plain;
+}
+function getContactLinkParts(data) {
+  const links = [];
+  if (data.portfolioUrl && data.portfolioUrl.trim()) links.push({ label: "Portfolio", url: data.portfolioUrl.trim() });
+  if (data.linkedinUrl && data.linkedinUrl.trim()) links.push({ label: "LinkedIn", url: data.linkedinUrl.trim() });
+  return links;
+}
 
 /* ---------------------------------------------------------------------
    4. DOCX GENERATION (hand-built OOXML, zipped with JSZip)
@@ -436,55 +677,89 @@ function buildDocxBlob(data) {
   body += paragraph(run(data.name, { bold: true, size: 44, color: "1F2937" }), { after: 90, align: "center" });
   body += paragraph(run(data.title, { bold: true, size: 27, color: "2A5C8A" }), { after: 200, align: "center" });
 
-  let contact = run(`${data.location}  |  ${data.phone}  |  ${data.email}  |  `, { size: 21, color: "444444" });
-  contact += hyperlinkRun("Portfolio", data.portfolioUrl);
-  contact += run("  |  ", { size: 21, color: "444444" });
-  contact += hyperlinkRun("LinkedIn", data.linkedinUrl);
-  body += paragraph(contact, { after: 260, align: "center" });
-
-  body += sectionHeading("Professional Summary");
-  body += paragraph(run(data.summary, { size: 22, color: "444444" }), { after: 180 });
-
-  body += sectionHeading("Core Skills");
-  data.skills.forEach((s) => {
-    const r = run(`${s.label}: `, { bold: true, size: 22, color: "1F2937" }) + run(s.items, { size: 22, color: "444444" });
-    body += paragraph(r, { after: 160 });
-  });
-
-  body += sectionHeading("Professional Experience");
-  data.experience.forEach((job) => {
-    const titleLine = run(job.title, { bold: true, size: 23, color: "1F2937" }) + tabRun() + run(job.dates, { italic: true, size: 21, color: "444444" });
-    body += paragraph(titleLine, { before: 260, after: 50, tabRight: TAB_RIGHT });
-    body += paragraph(run(job.company, { italic: true, size: 22, color: "2A5C8A" }), { after: 150 });
-    job.bullets.forEach((b) => {
-      body += paragraph(run(b, { size: 22, color: "444444" }), { after: 130, bulleted: true });
+  const plainContact = getContactLineParts(data);
+  const linkContact = getContactLinkParts(data);
+  const contactSegments = [];
+  if (plainContact.length) contactSegments.push({ text: plainContact.join("  |  ") });
+  linkContact.forEach((l) => contactSegments.push({ text: l.label, url: l.url }));
+  if (contactSegments.length) {
+    let contact = "";
+    contactSegments.forEach((seg, idx) => {
+      contact += seg.url ? hyperlinkRun(seg.text, seg.url) : run(seg.text, { size: 21, color: "444444" });
+      if (idx < contactSegments.length - 1) contact += run("  |  ", { size: 21, color: "444444" });
     });
-  });
+    body += paragraph(contact, { after: 260, align: "center" });
+  }
 
-  body += sectionHeading("Live Projects");
-  data.projects.forEach((p) => {
-    let r = run(p.name, { bold: true, size: 22, color: "1F2937" });
-    r += run("  \u2014  ", { italic: true, size: 21, color: "444444" });
-    p.links.forEach((l, idx) => {
-      r += l.url ? hyperlinkRun(l.label, l.url) : run(l.label, { italic: true, size: 21, color: "444444" });
-      if (idx < p.links.length - 1) r += run(" & ", { italic: true, size: 21, color: "444444" });
+  if (data.summary && data.summary.trim()) {
+    body += sectionHeading("Professional Summary");
+    body += paragraph(run(data.summary, { size: 22, color: "444444" }), { after: 180 });
+  }
+
+  const validSkills = data.skills.filter((s) => (s.label && s.label.trim()) || (s.items && s.items.trim()));
+  if (validSkills.length) {
+    body += sectionHeading("Core Skills");
+    validSkills.forEach((s) => {
+      const r = run(`${s.label}: `, { bold: true, size: 22, color: "1F2937" }) + run(s.items, { size: 22, color: "444444" });
+      body += paragraph(r, { after: 160 });
     });
-    r += run(":  ", { italic: true, size: 21, color: "444444" });
-    r += run(p.description, { size: 22, color: "444444" });
-    body += paragraph(r, { after: 150 });
-  });
+  }
 
-  body += sectionHeading("Education");
-  data.education.forEach((e) => {
-    const degLine = run(e.degree, { bold: true, size: 22, color: "1F2937" }) + tabRun() + run(e.dates, { size: 21, color: "444444" });
-    body += paragraph(degLine, { after: 30, tabRight: TAB_RIGHT });
-    body += paragraph(run(e.school, { italic: true, size: 21, color: "444444" }), { after: 150 });
-  });
+  const validExperience = data.experience.filter((job) => job.title && job.title.trim());
+  if (validExperience.length) {
+    body += sectionHeading("Professional Experience");
+    validExperience.forEach((job) => {
+      const titleLine = run(job.title, { bold: true, size: 23, color: "1F2937" }) + tabRun() + run(job.dates || "", { italic: true, size: 21, color: "444444" });
+      body += paragraph(titleLine, { before: 260, after: 50, tabRight: TAB_RIGHT });
+      if (job.company && job.company.trim()) {
+        body += paragraph(run(job.company, { italic: true, size: 22, color: "2A5C8A" }), { after: 150 });
+      }
+      (job.bullets || []).filter((b) => b && b.trim()).forEach((b) => {
+        body += paragraph(run(b, { size: 22, color: "444444" }), { after: 130, bulleted: true });
+      });
+    });
+  }
 
-  body += sectionHeading("Awards");
-  data.awards.forEach((a) => {
-    body += paragraph(run(a, { size: 22, color: "444444" }), { after: 130, bulleted: true });
-  });
+  const validProjects = data.projects.filter((p) => p.name && p.name.trim());
+  if (validProjects.length) {
+    body += sectionHeading("Live Projects");
+    validProjects.forEach((p) => {
+      let r = run(p.name, { bold: true, size: 22, color: "1F2937" });
+      const links = (p.links || []).filter((l) => (l.label && l.label.trim()) || (l.url && l.url.trim()));
+      if (links.length) {
+        r += run("  \u2014  ", { italic: true, size: 21, color: "444444" });
+        links.forEach((l, idx) => {
+          r += l.url && l.url.trim() ? hyperlinkRun(l.label || l.url, l.url.trim()) : run(l.label, { italic: true, size: 21, color: "444444" });
+          if (idx < links.length - 1) r += run(" & ", { italic: true, size: 21, color: "444444" });
+        });
+        r += run(":  ", { italic: true, size: 21, color: "444444" });
+      } else {
+        r += run("  \u2014  ", { italic: true, size: 21, color: "444444" });
+      }
+      r += run(p.description || "", { size: 22, color: "444444" });
+      body += paragraph(r, { after: 150 });
+    });
+  }
+
+  const validEducation = data.education.filter((e) => e.degree && e.degree.trim());
+  if (validEducation.length) {
+    body += sectionHeading("Education");
+    validEducation.forEach((e) => {
+      const degLine = run(e.degree, { bold: true, size: 22, color: "1F2937" }) + tabRun() + run(e.dates || "", { size: 21, color: "444444" });
+      body += paragraph(degLine, { after: 30, tabRight: TAB_RIGHT });
+      if (e.school && e.school.trim()) {
+        body += paragraph(run(e.school, { italic: true, size: 21, color: "444444" }), { after: 150 });
+      }
+    });
+  }
+
+  const validAwards = (data.awards || []).filter((a) => a && a.trim());
+  if (validAwards.length) {
+    body += sectionHeading("Awards");
+    validAwards.forEach((a) => {
+      body += paragraph(run(a, { size: 22, color: "444444" }), { after: 130, bulleted: true });
+    });
+  }
 
   const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="750" w:right="850" w:bottom="750" w:left="850" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>`;
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body}${sectPr}</w:body></w:document>`;
@@ -528,16 +803,30 @@ function buildPdfBlob(data) {
   doc.text(data.name, pageWidth / 2, y, { align: "center" }); y += 20;
   doc.setFontSize(13); setColor(ACCENT);
   doc.text(data.title, pageWidth / 2, y, { align: "center" }); y += 18;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10); setColor(GREY);
-  doc.text(`${data.location}  |  ${data.phone}  |  ${data.email}`, pageWidth / 2, y, { align: "center" });
-  y += 15;
-  const linksLine = "Portfolio   |   LinkedIn";
-  const lw = doc.getTextWidth(linksLine);
-  let lx = pageWidth / 2 - lw / 2;
-  setColor(ACCENT); doc.textWithLink("Portfolio", lx, y, { url: data.portfolioUrl });
-  let adv = doc.getTextWidth("Portfolio"); setColor(GREY); doc.text("   |   ", lx + adv, y);
-  adv += doc.getTextWidth("   |   "); setColor(ACCENT); doc.textWithLink("LinkedIn", lx + adv, y, { url: data.linkedinUrl });
-  y += 26;
+
+  const plainContactPdf = getContactLineParts(data);
+  const linkContactPdf = getContactLinkParts(data);
+  const pdfSegments = [];
+  if (plainContactPdf.length) pdfSegments.push({ text: plainContactPdf.join("  |  ") });
+  linkContactPdf.forEach((l) => pdfSegments.push({ text: l.label, url: l.url }));
+
+  if (pdfSegments.length) {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    const sep = "   |   ";
+    let totalWidth = 0;
+    pdfSegments.forEach((s, idx) => {
+      totalWidth += doc.getTextWidth(s.text);
+      if (idx < pdfSegments.length - 1) totalWidth += doc.getTextWidth(sep);
+    });
+    let cx = pageWidth / 2 - totalWidth / 2;
+    pdfSegments.forEach((s, idx) => {
+      if (s.url) { setColor(ACCENT); doc.textWithLink(s.text, cx, y, { url: s.url }); }
+      else { setColor(GREY); doc.text(s.text, cx, y); }
+      cx += doc.getTextWidth(s.text);
+      if (idx < pdfSegments.length - 1) { setColor(GREY); doc.text(sep, cx, y); cx += doc.getTextWidth(sep); }
+    });
+    y += 24;
+  }
 
   function sectionHeading(title) {
     ensureSpace(30);
@@ -560,254 +849,172 @@ function buildPdfBlob(data) {
     y += 3;
   }
 
-  sectionHeading("Professional Summary");
-  bodyText(data.summary);
-  y += 8;
+  if (data.summary && data.summary.trim()) {
+    sectionHeading("Professional Summary");
+    bodyText(data.summary);
+    y += 8;
+  }
 
-  sectionHeading("Core Skills");
-  data.skills.forEach((s) => {
-    ensureSpace(14);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
-    const label = `${s.label}: `;
-    doc.text(label, marginX, y);
-    const labelW = doc.getTextWidth(label);
-    doc.setFont("helvetica", "normal"); setColor(GREY);
-    const wrapped = doc.splitTextToSize(s.items, contentWidth - labelW);
-    doc.text(wrapped[0] || "", marginX + labelW, y); y += 13;
-    for (let i = 1; i < wrapped.length; i++) { ensureSpace(13); doc.text(wrapped[i], marginX, y); y += 13; }
-    y += 5;
-  });
-
-  sectionHeading("Professional Experience");
-  data.experience.forEach((job) => {
-    ensureSpace(30);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(11); setColor(NAVY);
-    doc.text(job.title, marginX, y);
-    doc.setFont("helvetica", "italic"); doc.setFontSize(10); setColor(GREY);
-    doc.text(job.dates, pageWidth - marginX, y, { align: "right" });
-    y += 14;
-    doc.setFont("helvetica", "italic"); doc.setFontSize(10.5); setColor(ACCENT);
-    doc.text(job.company, marginX, y);
-    y += 14;
-    job.bullets.forEach((b) => bulletText(b));
-    y += 6;
-  });
-
-  sectionHeading("Live Projects");
-  data.projects.forEach((p) => {
-    ensureSpace(14);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
-    doc.text(p.name, marginX, y);
-    let xCursor = marginX + doc.getTextWidth(p.name);
-    doc.setFont("helvetica", "italic"); setColor(GREY);
-    const dash = "  \u2014  ";
-    doc.text(dash, xCursor, y); xCursor += doc.getTextWidth(dash);
-    p.links.forEach((l, idx) => {
-      if (l.url) { setColor(ACCENT); doc.textWithLink(l.label, xCursor, y, { url: l.url }); }
-      else { setColor(GREY); doc.text(l.label, xCursor, y); }
-      xCursor += doc.getTextWidth(l.label);
-      if (idx < p.links.length - 1) { setColor(GREY); doc.text(" & ", xCursor, y); xCursor += doc.getTextWidth(" & "); }
+  const validSkillsPdf = data.skills.filter((s) => (s.label && s.label.trim()) || (s.items && s.items.trim()));
+  if (validSkillsPdf.length) {
+    sectionHeading("Core Skills");
+    validSkillsPdf.forEach((s) => {
+      ensureSpace(14);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
+      const label = `${s.label}: `;
+      doc.text(label, marginX, y);
+      const labelW = doc.getTextWidth(label);
+      doc.setFont("helvetica", "normal"); setColor(GREY);
+      const wrapped = doc.splitTextToSize(s.items, contentWidth - labelW);
+      doc.text(wrapped[0] || "", marginX + labelW, y); y += 13;
+      for (let i = 1; i < wrapped.length; i++) { ensureSpace(13); doc.text(wrapped[i], marginX, y); y += 13; }
+      y += 5;
     });
-    setColor(GREY); doc.text(":", xCursor, y);
-    y += 13;
-    bodyText(p.description);
-    y += 6;
-  });
+  }
 
-  sectionHeading("Education");
-  data.education.forEach((e) => {
-    ensureSpace(26);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
-    doc.text(e.degree, marginX, y);
-    doc.setFont("helvetica", "normal"); setColor(GREY);
-    doc.text(e.dates, pageWidth - marginX, y, { align: "right" });
-    y += 13;
-    doc.setFont("helvetica", "italic"); doc.setFontSize(10); setColor(GREY);
-    doc.text(e.school, marginX, y);
-    y += 16;
-  });
+  const validExperiencePdf = data.experience.filter((job) => job.title && job.title.trim());
+  if (validExperiencePdf.length) {
+    sectionHeading("Professional Experience");
+    validExperiencePdf.forEach((job) => {
+      ensureSpace(30);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); setColor(NAVY);
+      doc.text(job.title, marginX, y);
+      doc.setFont("helvetica", "italic"); doc.setFontSize(10); setColor(GREY);
+      doc.text(job.dates || "", pageWidth - marginX, y, { align: "right" });
+      y += 14;
+      if (job.company && job.company.trim()) {
+        doc.setFont("helvetica", "italic"); doc.setFontSize(10.5); setColor(ACCENT);
+        doc.text(job.company, marginX, y);
+        y += 14;
+      }
+      (job.bullets || []).filter((b) => b && b.trim()).forEach((b) => bulletText(b));
+      y += 6;
+    });
+  }
 
-  sectionHeading("Awards");
-  data.awards.forEach((a) => bulletText(a));
+  const validProjectsPdf = data.projects.filter((p) => p.name && p.name.trim());
+  if (validProjectsPdf.length) {
+    sectionHeading("Live Projects");
+    validProjectsPdf.forEach((p) => {
+      ensureSpace(14);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
+      doc.text(p.name, marginX, y);
+      let xCursor = marginX + doc.getTextWidth(p.name);
+      const links = (p.links || []).filter((l) => (l.label && l.label.trim()) || (l.url && l.url.trim()));
+      if (links.length) {
+        doc.setFont("helvetica", "italic"); setColor(GREY);
+        const dash = "  \u2014  ";
+        doc.text(dash, xCursor, y); xCursor += doc.getTextWidth(dash);
+        links.forEach((l, idx) => {
+          if (l.url && l.url.trim()) { setColor(ACCENT); doc.textWithLink(l.label || l.url, xCursor, y, { url: l.url }); }
+          else { setColor(GREY); doc.text(l.label, xCursor, y); }
+          xCursor += doc.getTextWidth(l.label || l.url);
+          if (idx < links.length - 1) { setColor(GREY); doc.text(" & ", xCursor, y); xCursor += doc.getTextWidth(" & "); }
+        });
+        setColor(GREY); doc.text(":", xCursor, y);
+      } else {
+        doc.setFont("helvetica", "italic"); setColor(GREY);
+        doc.text("  \u2014", xCursor, y);
+      }
+      y += 13;
+      bodyText(p.description || "");
+      y += 6;
+    });
+  }
+
+  const validEducationPdf = data.education.filter((e) => e.degree && e.degree.trim());
+  if (validEducationPdf.length) {
+    sectionHeading("Education");
+    validEducationPdf.forEach((e) => {
+      ensureSpace(26);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
+      doc.text(e.degree, marginX, y);
+      doc.setFont("helvetica", "normal"); setColor(GREY);
+      doc.text(e.dates || "", pageWidth - marginX, y, { align: "right" });
+      y += 13;
+      if (e.school && e.school.trim()) {
+        doc.setFont("helvetica", "italic"); doc.setFontSize(10); setColor(GREY);
+        doc.text(e.school, marginX, y);
+        y += 16;
+      } else {
+        y += 3;
+      }
+    });
+  }
+
+  const validAwardsPdf = (data.awards || []).filter((a) => a && a.trim());
+  if (validAwardsPdf.length) {
+    sectionHeading("Awards");
+    validAwardsPdf.forEach((a) => bulletText(a));
+  }
 
   return doc.output("blob");
 }
 
 /* ---------------------------------------------------------------------
-   6. NODE.JS GENERATOR SCRIPT (data-driven, for exact high-fidelity docx)
---------------------------------------------------------------------- */
-function buildNodeScript(data) {
-  return `/* Auto-generated by the Resume Builder tool.
- * Requires: npm install docx
- * Run:      node build_resume.js
- * Produces: resume.docx
- */
-const { Document, Packer, Paragraph, TextRun, BorderStyle, AlignmentType, ExternalHyperlink, LevelFormat, convertInchesToTwip } = require("docx");
-const fs = require("fs");
-
-const DATA = ${JSON.stringify(data, null, 2)};
-
-const NAVY = "1F2937", ACCENT = "2A5C8A", GREY = "444444", FONT = "Arial";
-
-function sectionHeading(text) {
-  return new Paragraph({
-    spacing: { before: 340, after: 160, line: 300 },
-    border: { bottom: { color: ACCENT, space: 2, style: BorderStyle.SINGLE, size: 8 } },
-    children: [new TextRun({ text: text.toUpperCase(), bold: true, color: ACCENT, size: 24, font: FONT })],
-  });
-}
-function bullet(text) {
-  return new Paragraph({
-    numbering: { reference: "bullet-list", level: 0 },
-    spacing: { after: 130, line: 300 },
-    children: [new TextRun({ text, size: 22, font: FONT, color: GREY })],
-  });
-}
-function skillLine(label, items) {
-  return new Paragraph({
-    spacing: { after: 160, line: 300 },
-    children: [
-      new TextRun({ text: label + ": ", bold: true, size: 22, font: FONT, color: NAVY }),
-      new TextRun({ text: items, size: 22, font: FONT, color: GREY }),
-    ],
-  });
-}
-function jobTitleLine(title, dates) {
-  return new Paragraph({
-    spacing: { before: 260, after: 50, line: 300 },
-    tabStops: [{ type: "right", position: convertInchesToTwip(7.3) }],
-    children: [
-      new TextRun({ text: title, bold: true, size: 23, font: FONT, color: NAVY }),
-      new TextRun({ text: "\\t" + dates, italics: true, size: 21, font: FONT, color: GREY }),
-    ],
-  });
-}
-function companyLine(company) {
-  return new Paragraph({
-    spacing: { after: 150, line: 300 },
-    children: [new TextRun({ text: company, italics: true, size: 22, font: FONT, color: ACCENT })],
-  });
-}
-function projectParagraph(p) {
-  const children = [
-    new TextRun({ text: p.name, bold: true, size: 22, font: FONT, color: NAVY }),
-    new TextRun({ text: "  \\u2014  ", italics: true, size: 21, font: FONT, color: GREY }),
-  ];
-  p.links.forEach((l, idx) => {
-    if (l.url) {
-      children.push(new ExternalHyperlink({ link: l.url, children: [new TextRun({ text: l.label, italics: true, size: 21, font: FONT, color: ACCENT, underline: {} })] }));
-    } else {
-      children.push(new TextRun({ text: l.label, italics: true, size: 21, font: FONT, color: GREY }));
-    }
-    if (idx < p.links.length - 1) children.push(new TextRun({ text: " & ", italics: true, size: 21, font: FONT, color: GREY }));
-  });
-  children.push(new TextRun({ text: ":  ", italics: true, size: 21, font: FONT, color: GREY }));
-  children.push(new TextRun({ text: p.description, size: 22, font: FONT, color: GREY }));
-  return new Paragraph({ spacing: { after: 150, line: 300 }, children });
-}
-
-const children = [];
-children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 90, line: 300 }, children: [new TextRun({ text: DATA.name, bold: true, size: 44, font: FONT, color: NAVY })] }));
-children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200, line: 300 }, children: [new TextRun({ text: DATA.title, bold: true, size: 27, font: FONT, color: ACCENT })] }));
-children.push(new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { after: 260, line: 300 },
-  children: [
-    new TextRun({ text: DATA.location + "  |  " + DATA.phone + "  |  " + DATA.email + "  |  ", size: 21, font: FONT, color: GREY }),
-    new ExternalHyperlink({ link: DATA.portfolioUrl, children: [new TextRun({ text: "Portfolio", size: 21, font: FONT, color: ACCENT, underline: {} })] }),
-    new TextRun({ text: "  |  ", size: 21, font: FONT, color: GREY }),
-    new ExternalHyperlink({ link: DATA.linkedinUrl, children: [new TextRun({ text: "LinkedIn", size: 21, font: FONT, color: ACCENT, underline: {} })] }),
-  ],
-}));
-
-children.push(sectionHeading("Professional Summary"));
-children.push(new Paragraph({ spacing: { after: 180, line: 300 }, children: [new TextRun({ text: DATA.summary, size: 22, font: FONT, color: GREY })] }));
-
-children.push(sectionHeading("Core Skills"));
-DATA.skills.forEach(s => children.push(skillLine(s.label, s.items)));
-
-children.push(sectionHeading("Professional Experience"));
-DATA.experience.forEach(job => {
-  children.push(jobTitleLine(job.title, job.dates));
-  children.push(companyLine(job.company));
-  job.bullets.forEach(b => children.push(bullet(b)));
-});
-
-children.push(sectionHeading("Live Projects"));
-DATA.projects.forEach(p => children.push(projectParagraph(p)));
-
-children.push(sectionHeading("Education"));
-DATA.education.forEach(e => {
-  children.push(new Paragraph({
-    spacing: { after: 30, line: 300 },
-    tabStops: [{ type: "right", position: convertInchesToTwip(7.3) }],
-    children: [
-      new TextRun({ text: e.degree, bold: true, size: 22, font: FONT, color: NAVY }),
-      new TextRun({ text: "\\t" + e.dates, size: 21, font: FONT, color: GREY }),
-    ],
-  }));
-  children.push(new Paragraph({ spacing: { after: 150, line: 300 }, children: [new TextRun({ text: e.school, italics: true, size: 21, font: FONT, color: GREY })] }));
-});
-
-children.push(sectionHeading("Awards"));
-DATA.awards.forEach(a => children.push(bullet(a)));
-
-const doc = new Document({
-  numbering: {
-    config: [{
-      reference: "bullet-list",
-      levels: [{ level: 0, format: LevelFormat.BULLET, text: "\\u2022", alignment: AlignmentType.LEFT,
-        style: { paragraph: { indent: { left: convertInchesToTwip(0.25), hanging: convertInchesToTwip(0.15) } } } }],
-    }],
-  },
-  sections: [{
-    properties: { page: { size: { width: 12240, height: 15840 }, margin: { top: 750, bottom: 750, left: 850, right: 850 } } },
-    children,
-  }],
-});
-
-Packer.toBuffer(doc).then(buffer => {
-  fs.writeFileSync("resume.docx", buffer);
-  console.log("Saved resume.docx");
-});
-`;
-}
-
-/* ---------------------------------------------------------------------
    7. DOWNLOAD HANDLER
 --------------------------------------------------------------------- */
-document.getElementById("downloadBtn").addEventListener("click", async () => {
-  const btn = document.getElementById("downloadBtn");
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+function closeDownloadMenu() {
+  document.getElementById("downloadMenu").classList.remove("open");
+}
+
+document.getElementById("downloadBtn").addEventListener("click", (e) => {
+  e.stopPropagation();
+  document.getElementById("downloadMenu").classList.toggle("open");
+});
+document.getElementById("downloadMenu").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", closeDownloadMenu);
+
+document.getElementById("dlPdf").addEventListener("click", async () => {
   const status = document.getElementById("status");
-  btn.disabled = true;
-  status.textContent = "Building your files…";
+  closeDownloadMenu();
+  status.textContent = "Building PDF…";
   try {
-    const [docxBlob, pdfBlob] = await Promise.all([
-      buildDocxBlob(resumeData),
-      Promise.resolve(buildPdfBlob(resumeData)),
-    ]);
-    const jsText = buildNodeScript(resumeData);
-
-    const zip = new JSZip();
-    zip.file("Resume.docx", docxBlob);
-    zip.file("Resume.pdf", pdfBlob);
-    zip.file("build_resume.js", jsText);
-
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(zipBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "resume-package.zip";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    status.textContent = "Downloaded resume-package.zip (Resume.docx, Resume.pdf, build_resume.js).";
+    const blob = buildPdfBlob(resumeData);
+    triggerDownload(blob, "Resume.pdf");
+    status.textContent = "Downloaded Resume.pdf";
   } catch (err) {
     console.error(err);
-    status.textContent = "Something went wrong generating the files: " + err.message;
-  } finally {
-    btn.disabled = false;
+    status.textContent = "Something went wrong building the PDF: " + err.message;
+  }
+});
+
+document.getElementById("dlDocx").addEventListener("click", async () => {
+  const status = document.getElementById("status");
+  closeDownloadMenu();
+  status.textContent = "Building DOCX…";
+  try {
+    const blob = await buildDocxBlob(resumeData);
+    triggerDownload(blob, "Resume.docx");
+    status.textContent = "Downloaded Resume.docx";
+  } catch (err) {
+    console.error(err);
+    status.textContent = "Something went wrong building the DOCX: " + err.message;
+  }
+});
+
+document.getElementById("dlJson").addEventListener("click", () => {
+  const status = document.getElementById("status");
+  closeDownloadMenu();
+  try {
+    const jsonText = JSON.stringify(resumeData, null, 2);
+    const blob = new Blob([jsonText], { type: "application/json" });
+    triggerDownload(blob, "resume-data.json");
+    status.textContent = "Downloaded resume-data.json";
+  } catch (err) {
+    console.error(err);
+    status.textContent = "Something went wrong building the JSON: " + err.message;
   }
 });
 </script>
