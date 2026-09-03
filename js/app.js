@@ -555,9 +555,10 @@ function buildDocxBlob(data) {
     return `<w:hyperlink r:id="${id}" w:history="1"><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>${italicTag}<w:color w:val="${accent}"/><w:u w:val="single"/><w:sz w:val="${size}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:hyperlink>`;
   }
   function paragraph(runsXml, opts = {}) {
-    const { before, after = 150, line = 300, border, leftBar, topRule, lightBottomRule, tabRight, bulleted, align, indent } = opts;
+    const { before, after = 150, line = 300, border, leftBar, topRule, lightBottomRule, tabRight, bulleted, align, indent, keepNext } = opts;
     let ppr = "<w:pPr>";
     if (align) ppr += `<w:jc w:val="${align}"/>`;
+    if (keepNext) ppr += `<w:keepNext/>`;
     if (bulleted) ppr += `<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>`;
     if (tabRight) ppr += `<w:tabs><w:tab w:val="right" w:pos="${tabRight}"/></w:tabs>`;
     ppr += `<w:spacing ${before !== undefined ? `w:before="${before}" ` : ""}w:after="${after}" w:line="${line}" w:lineRule="auto"/>`;
@@ -623,10 +624,11 @@ function buildDocxBlob(data) {
   if (validExperience.length) {
     body += sectionHeading(sectionTitle(data, "experience"));
     validExperience.forEach((job) => {
+      const hasBullets = (job.bullets || []).some((b) => b && b.trim());
       const titleLine = run(job.title, { bold: true, size: 23, color: navy }) + tabRun() + run(job.dates || "", { italic: true, size: 21, color: grey });
-      body += paragraph(titleLine, { before: 260, after: 50, tabRight: TAB_RIGHT });
+      body += paragraph(titleLine, { before: 260, after: 50, tabRight: TAB_RIGHT, keepNext: true });
       if (job.company && job.company.trim()) {
-        body += paragraph(run(job.company, { italic: true, size: 22, color: accent }), { after: 150 });
+        body += paragraph(run(job.company, { italic: true, size: 22, color: accent }), { after: 150, keepNext: hasBullets });
       }
       (job.bullets || []).filter((b) => b && b.trim()).forEach((b) => {
         body += paragraph(run(b, { size: 22, color: grey }), { after: 130, bulleted: true });
@@ -660,7 +662,7 @@ function buildDocxBlob(data) {
     body += sectionHeading(sectionTitle(data, "education"));
     validEducation.forEach((e) => {
       const degLine = run(e.degree, { bold: true, size: 22, color: navy }) + tabRun() + run(e.dates || "", { size: 21, color: grey });
-      body += paragraph(degLine, { after: 30, tabRight: TAB_RIGHT });
+      body += paragraph(degLine, { after: 30, tabRight: TAB_RIGHT, keepNext: !!(e.school && e.school.trim()) });
       if (e.school && e.school.trim()) {
         body += paragraph(run(e.school, { italic: true, size: 21, color: grey }), { after: 150 });
       }
@@ -835,7 +837,12 @@ function buildPdfBlob(data) {
   if (validExperiencePdf.length) {
     sectionHeading(sectionTitle(data, "experience"));
     validExperiencePdf.forEach((job) => {
-      ensureSpace(30);
+      // Reserve room for the title/dates + company + at least the first bullet
+      // up front, so a page break lands *before* the job entry instead of
+      // splitting its bullets away from the heading that gives them context.
+      const hasCompany = job.company && job.company.trim();
+      const hasBullets = (job.bullets || []).some((b) => b && b.trim());
+      ensureSpace(14 + (hasCompany ? 14 : 0) + (hasBullets ? 14 : 0));
       doc.setFont("helvetica", "bold"); doc.setFontSize(11); setColor(NAVY);
       doc.text(job.title, marginX, y);
       doc.setFont("helvetica", italicStyle); doc.setFontSize(10); setColor(GREY);
@@ -855,7 +862,9 @@ function buildPdfBlob(data) {
   if (validProjectsPdf.length) {
     sectionHeading(sectionTitle(data, "projects"));
     validProjectsPdf.forEach((p) => {
-      ensureSpace(14);
+      // Keep the project name with at least the start of its description.
+      const hasDescription = p.description && p.description.trim();
+      ensureSpace(13 + (hasDescription ? 13 : 0));
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
       doc.text(p.name, marginX, y);
       let xCursor = marginX + doc.getTextWidth(p.name);
@@ -913,6 +922,18 @@ function buildPdfBlob(data) {
 /* ---------------------------------------------------------------------
    6. DOWNLOAD HANDLER
 --------------------------------------------------------------------- */
+function buildFilename(ext) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const now = new Date();
+  const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const timePart = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+  const safeName = (resumeData.name || "").trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "_");
+  const base = safeName ? `${safeName}_Resume` : "Resume";
+  return `${base}_${datePart}_${timePart}.${ext}`;
+}
+
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -941,8 +962,9 @@ document.getElementById("dlPdf").addEventListener("click", async () => {
   status.textContent = "Building PDF…";
   try {
     const blob = buildPdfBlob(resumeData);
-    triggerDownload(blob, "Resume.pdf");
-    status.textContent = "Downloaded Resume.pdf";
+    const filename = buildFilename("pdf");
+    triggerDownload(blob, filename);
+    status.textContent = "Downloaded " + filename;
   } catch (err) {
     console.error(err);
     status.textContent = "Something went wrong building the PDF: " + err.message;
@@ -955,8 +977,9 @@ document.getElementById("dlDocx").addEventListener("click", async () => {
   status.textContent = "Building DOCX…";
   try {
     const blob = await buildDocxBlob(resumeData);
-    triggerDownload(blob, "Resume.docx");
-    status.textContent = "Downloaded Resume.docx";
+    const filename = buildFilename("docx");
+    triggerDownload(blob, filename);
+    status.textContent = "Downloaded " + filename;
   } catch (err) {
     console.error(err);
     status.textContent = "Something went wrong building the DOCX: " + err.message;
