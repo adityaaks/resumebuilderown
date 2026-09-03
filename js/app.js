@@ -1,6 +1,54 @@
 /* ---------------------------------------------------------------------
    1. STATE — starts empty; fill in the form or upload a JSON file
 --------------------------------------------------------------------- */
+const DEFAULT_SECTION_TITLES = {
+  summary: "Professional Summary",
+  skills: "Core Skills",
+  experience: "Professional Experience",
+  projects: "Live Projects",
+  education: "Education",
+  awards: "Awards"
+};
+
+const DEFAULT_TEMPLATE = "classic";
+
+// Colors are hex without "#" so DOCX (which wants bare hex) can use them directly;
+// hexToRgb() below converts them to 0-255 arrays for the PDF generator.
+const TEMPLATES = {
+  classic: {
+    label: "Classic",
+    desc: "Centered header, underlined headings",
+    colors: { navy: "1F2937", accent: "2A5C8A", grey: "444444" },
+    align: "center",
+    heading: "underline"
+  },
+  modern: {
+    label: "Modern",
+    desc: "Left-aligned, teal accent bar",
+    colors: { navy: "16233A", accent: "0D9488", grey: "3F3F46" },
+    align: "left",
+    heading: "bar"
+  },
+  minimal: {
+    label: "Minimal",
+    desc: "Monochrome, hairline rules, refined type",
+    colors: { navy: "1A1A1A", accent: "55606B", grey: "3D4148" },
+    align: "left",
+    heading: "plain",
+    noItalic: true,
+    headerRule: true,
+    titleStyle: "caps"
+  }
+};
+
+function getTemplate(key) {
+  return TEMPLATES[key] || TEMPLATES[DEFAULT_TEMPLATE];
+}
+function hexToRgb(hex) {
+  const n = parseInt(hex, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
 let resumeData = {
   name: "",
   title: "",
@@ -10,6 +58,8 @@ let resumeData = {
   portfolioUrl: "",
   linkedinUrl: "",
   summary: "",
+  template: DEFAULT_TEMPLATE,
+  sectionTitles: { ...DEFAULT_SECTION_TITLES },
   skills: [],
   experience: [],
   projects: [],
@@ -29,6 +79,8 @@ const sampleResumeData = {
   portfolioUrl: "https://jordanrivera.example.com",
   linkedinUrl: "https://www.linkedin.com/in/jordan-rivera-example/",
   summary: "Backend Developer with 5+ years of experience designing and scaling REST and GraphQL APIs for e-commerce and fintech platforms. Skilled in Node.js, PostgreSQL, and distributed systems, with a track record of reducing latency and leading small engineering teams through production incidents.",
+  template: DEFAULT_TEMPLATE,
+  sectionTitles: { ...DEFAULT_SECTION_TITLES },
   skills: [
     { label: "Backend Development", items: "Node.js, Express, GraphQL, REST APIs, Microservices" },
     { label: "Databases", items: "PostgreSQL, MongoDB, Redis" },
@@ -62,26 +114,28 @@ const sampleResumeData = {
    2. STATE MUTATORS — each one also refreshes the live preview
 --------------------------------------------------------------------- */
 function updateField(field, value) { resumeData[field] = value; renderPreview(); }
+function updateSectionTitle(key, value) { resumeData.sectionTitles[key] = value; renderPreview(); }
+function selectTemplate(key) { resumeData.template = key; render(); }
 function updateSkill(i, field, value) { resumeData.skills[i][field] = value; renderPreview(); }
-function addSkill() { resumeData.skills.push({ label: "New Category", items: "" }); render(); }
+function addSkill() { resumeData.skills.push({ label: "", items: "" }); render(); }
 function removeSkill(i) { resumeData.skills.splice(i, 1); render(); }
 
 function updateJob(i, field, value) { resumeData.experience[i][field] = value; renderPreview(); }
-function addJob() { resumeData.experience.push({ title: "Job Title", company: "Company", dates: "Month YYYY – Month YYYY", bullets: [""] }); render(); }
+function addJob() { resumeData.experience.push({ title: "", company: "", dates: "", bullets: [""] }); render(); }
 function removeJob(i) { resumeData.experience.splice(i, 1); render(); }
 function updateBullet(ji, bi, value) { resumeData.experience[ji].bullets[bi] = value; renderPreview(); }
 function addBullet(ji) { resumeData.experience[ji].bullets.push(""); render(); }
 function removeBullet(ji, bi) { resumeData.experience[ji].bullets.splice(bi, 1); render(); }
 
 function updateProject(i, field, value) { resumeData.projects[i][field] = value; renderPreview(); }
-function addProject() { resumeData.projects.push({ name: "New Project", description: "", links: [{ label: "Website", url: "" }] }); render(); }
+function addProject() { resumeData.projects.push({ name: "", description: "", links: [{ label: "", url: "" }] }); render(); }
 function removeProject(i) { resumeData.projects.splice(i, 1); render(); }
 function updateProjectLink(pi, li, field, value) { resumeData.projects[pi].links[li][field] = value; renderPreview(); }
-function addProjectLink(pi) { resumeData.projects[pi].links.push({ label: "App Store", url: "" }); render(); }
+function addProjectLink(pi) { resumeData.projects[pi].links.push({ label: "", url: "" }); render(); }
 function removeProjectLink(pi, li) { resumeData.projects[pi].links.splice(li, 1); render(); }
 
 function updateEdu(i, field, value) { resumeData.education[i][field] = value; renderPreview(); }
-function addEdu() { resumeData.education.push({ degree: "Degree", dates: "YYYY – YYYY", school: "School / University" }); render(); }
+function addEdu() { resumeData.education.push({ degree: "", dates: "", school: "" }); render(); }
 function removeEdu(i) { resumeData.education.splice(i, 1); render(); }
 
 function updateAward(i, value) { resumeData.awards[i] = value; renderPreview(); }
@@ -95,9 +149,17 @@ function normalizeData(parsed) {
   const defaults = {
     name: "", title: "", location: "", phone: "", email: "",
     portfolioUrl: "", linkedinUrl: "", summary: "",
+    template: DEFAULT_TEMPLATE,
+    sectionTitles: { ...DEFAULT_SECTION_TITLES },
     skills: [], experience: [], projects: [], education: [], awards: []
   };
   const merged = Object.assign({}, defaults, parsed || {});
+  if (!TEMPLATES[merged.template]) merged.template = DEFAULT_TEMPLATE;
+  merged.sectionTitles = Object.assign(
+    {},
+    DEFAULT_SECTION_TITLES,
+    (parsed && typeof parsed.sectionTitles === "object" && parsed.sectionTitles) || {}
+  );
   ["skills", "experience", "projects", "education", "awards"].forEach((k) => {
     if (!Array.isArray(merged[k])) merged[k] = [];
   });
@@ -187,55 +249,75 @@ function render() {
   const d = resumeData;
   let html = "";
 
+  function cardHeading(key) {
+    return `<h2><input type="text" class="card-title-input" value="${esc(d.sectionTitles[key])}" oninput="updateSectionTitle('${key}', this.value)" placeholder="${esc(DEFAULT_SECTION_TITLES[key])}"></h2>`;
+  }
+
+  const currentTemplate = TEMPLATES[d.template] ? d.template : DEFAULT_TEMPLATE;
+  html += `<div class="card">
+    <h2>Template</h2>
+    <div class="template-grid">` +
+    Object.keys(TEMPLATES).map((key) => {
+      const t = TEMPLATES[key];
+      const selected = key === currentTemplate ? " selected" : "";
+      return `<button type="button" class="template-option${selected}" onclick="selectTemplate('${key}')">
+        <div class="template-swatch"><span style="background:#${t.colors.navy}"></span><span style="background:#${t.colors.accent}"></span></div>
+        <div class="template-name">${t.label}</div>
+        <div class="template-desc">${t.desc}</div>
+      </button>`;
+    }).join("") +
+    `</div>
+  </div>`;
+
   html += `<div class="card">
     <h2>Header</h2>
     <div class="row2">
-      <div><label>Full Name</label><input type="text" value="${esc(d.name)}" oninput="updateField('name', this.value)"></div>
-      <div><label>Title</label><input type="text" value="${esc(d.title)}" oninput="updateField('title', this.value)"></div>
+      <div><label>Full Name</label><input type="text" placeholder="e.g. Jordan Rivera" value="${esc(d.name)}" oninput="updateField('name', this.value)"></div>
+      <div><label>Title</label><input type="text" placeholder="e.g. Senior Backend Developer" value="${esc(d.title)}" oninput="updateField('title', this.value)"></div>
     </div>
     <div class="row2">
-      <div><label>Location</label><input type="text" value="${esc(d.location)}" oninput="updateField('location', this.value)"></div>
-      <div><label>Phone</label><input type="text" value="${esc(d.phone)}" oninput="updateField('phone', this.value)"></div>
+      <div><label>Location</label><input type="text" placeholder="e.g. Austin, TX" value="${esc(d.location)}" oninput="updateField('location', this.value)"></div>
+      <div><label>Phone</label><input type="text" placeholder="e.g. +1-555-0142" value="${esc(d.phone)}" oninput="updateField('phone', this.value)"></div>
     </div>
     <label>Email</label>
-    <input type="text" class="input-lg" value="${esc(d.email)}" oninput="updateField('email', this.value)">
+    <input type="text" class="input-lg" placeholder="e.g. jordan.rivera@example.com" value="${esc(d.email)}" oninput="updateField('email', this.value)">
     <div class="row2">
-      <div><label>Portfolio URL</label><input type="text" value="${esc(d.portfolioUrl)}" oninput="updateField('portfolioUrl', this.value)"></div>
-      <div><label>LinkedIn URL</label><input type="text" value="${esc(d.linkedinUrl)}" oninput="updateField('linkedinUrl', this.value)"></div>
+      <div><label>Portfolio URL</label><input type="text" placeholder="https://..." value="${esc(d.portfolioUrl)}" oninput="updateField('portfolioUrl', this.value)"></div>
+      <div><label>LinkedIn URL</label><input type="text" placeholder="https://linkedin.com/in/..." value="${esc(d.linkedinUrl)}" oninput="updateField('linkedinUrl', this.value)"></div>
     </div>
   </div>`;
 
   html += `<div class="card">
-    <h2>Professional Summary</h2>
-    <textarea rows="5" oninput="updateField('summary', this.value)">${esc(d.summary)}</textarea>
+    ${cardHeading("summary")}
+    <textarea rows="5" placeholder="e.g. Backend developer with 5+ years building REST APIs and scaling distributed systems..." oninput="updateField('summary', this.value)">${esc(d.summary)}</textarea>
   </div>`;
 
-  html += `<div class="card"><h2>Core Skills</h2>`;
+  html += `<div class="card">${cardHeading("skills")}`;
   d.skills.forEach((s, i) => {
     html += `<div class="item-block">
       <div class="item-block-head"><span>Category ${i + 1}</span><button class="small danger" onclick="removeSkill(${i})">Remove</button></div>
       <label>Category label</label>
-      <input type="text" value="${esc(s.label)}" oninput="updateSkill(${i}, 'label', this.value)">
+      <input type="text" placeholder="e.g. Programming Languages" value="${esc(s.label)}" oninput="updateSkill(${i}, 'label', this.value)">
       <label>Items (comma-separated)</label>
-      <textarea rows="2" oninput="updateSkill(${i}, 'items', this.value)">${esc(s.items)}</textarea>
+      <textarea rows="2" placeholder="e.g. JavaScript, Python, SQL" oninput="updateSkill(${i}, 'items', this.value)">${esc(s.items)}</textarea>
     </div>`;
   });
   html += `<button class="add" onclick="addSkill()">+ Add skill category</button></div>`;
 
-  html += `<div class="card"><h2>Professional Experience</h2>`;
+  html += `<div class="card">${cardHeading("experience")}`;
   d.experience.forEach((job, ji) => {
     html += `<div class="item-block">
       <div class="item-block-head"><span>Role ${ji + 1}</span><button class="small danger" onclick="removeJob(${ji})">Remove role</button></div>
       <div class="row2">
-        <div><label>Job Title</label><input type="text" value="${esc(job.title)}" oninput="updateJob(${ji}, 'title', this.value)"></div>
-        <div><label>Company</label><input type="text" value="${esc(job.company)}" oninput="updateJob(${ji}, 'company', this.value)"></div>
+        <div><label>Job Title</label><input type="text" placeholder="e.g. Senior Backend Engineer" value="${esc(job.title)}" oninput="updateJob(${ji}, 'title', this.value)"></div>
+        <div><label>Company</label><input type="text" placeholder="e.g. Acme Corporation" value="${esc(job.company)}" oninput="updateJob(${ji}, 'company', this.value)"></div>
       </div>
       <label>Dates</label>
-      <input type="text" value="${esc(job.dates)}" oninput="updateJob(${ji}, 'dates', this.value)">
+      <input type="text" placeholder="e.g. Jan 2022 – Present" value="${esc(job.dates)}" oninput="updateJob(${ji}, 'dates', this.value)">
       <label>Bullet points</label>`;
     job.bullets.forEach((b, bi) => {
       html += `<div class="bullet-row">
-        <textarea rows="2" oninput="updateBullet(${ji}, ${bi}, this.value)">${esc(b)}</textarea>
+        <textarea rows="2" placeholder="e.g. Redesigned the checkout flow, increasing conversion by 15% and cutting page load time in half" oninput="updateBullet(${ji}, ${bi}, this.value)">${esc(b)}</textarea>
         <button class="small danger" onclick="removeBullet(${ji}, ${bi})">✕</button>
       </div>`;
     });
@@ -244,18 +326,18 @@ function render() {
   });
   html += `<button class="add" onclick="addJob()">+ Add role</button></div>`;
 
-  html += `<div class="card"><h2>Live Projects</h2>`;
+  html += `<div class="card">${cardHeading("projects")}`;
   d.projects.forEach((p, pi) => {
     html += `<div class="item-block">
       <div class="item-block-head"><span>Project ${pi + 1}</span><button class="small danger" onclick="removeProject(${pi})">Remove project</button></div>
       <label>Project name</label>
-      <input type="text" value="${esc(p.name)}" oninput="updateProject(${pi}, 'name', this.value)">
+      <input type="text" placeholder="e.g. Personal Portfolio Website" value="${esc(p.name)}" oninput="updateProject(${pi}, 'name', this.value)">
       <label>Description</label>
-      <textarea rows="3" oninput="updateProject(${pi}, 'description', this.value)">${esc(p.description)}</textarea>
+      <textarea rows="3" placeholder="Briefly describe what it does and the tech you used" oninput="updateProject(${pi}, 'description', this.value)">${esc(p.description)}</textarea>
       <label>Links</label>`;
     p.links.forEach((l, li) => {
       html += `<div class="link-row">
-        <input class="link-label" type="text" placeholder="Label (e.g. App Store)" value="${esc(l.label)}" oninput="updateProjectLink(${pi}, ${li}, 'label', this.value)">
+        <input class="link-label" type="text" placeholder="e.g. Website" value="${esc(l.label)}" oninput="updateProjectLink(${pi}, ${li}, 'label', this.value)">
         <input type="text" placeholder="https://..." value="${esc(l.url)}" oninput="updateProjectLink(${pi}, ${li}, 'url', this.value)">
         <button class="small danger" onclick="removeProjectLink(${pi}, ${li})">✕</button>
       </div>`;
@@ -265,24 +347,24 @@ function render() {
   });
   html += `<button class="add" onclick="addProject()">+ Add project</button></div>`;
 
-  html += `<div class="card"><h2>Education</h2>`;
+  html += `<div class="card">${cardHeading("education")}`;
   d.education.forEach((e, ei) => {
     html += `<div class="item-block">
       <div class="item-block-head"><span>Entry ${ei + 1}</span><button class="small danger" onclick="removeEdu(${ei})">Remove</button></div>
       <div class="row2">
-        <div><label>Degree</label><input type="text" value="${esc(e.degree)}" oninput="updateEdu(${ei}, 'degree', this.value)"></div>
-        <div><label>Dates</label><input type="text" value="${esc(e.dates)}" oninput="updateEdu(${ei}, 'dates', this.value)"></div>
+        <div><label>Degree</label><input type="text" placeholder="e.g. B.S. Computer Science" value="${esc(e.degree)}" oninput="updateEdu(${ei}, 'degree', this.value)"></div>
+        <div><label>Dates</label><input type="text" placeholder="e.g. 2019 – 2023" value="${esc(e.dates)}" oninput="updateEdu(${ei}, 'dates', this.value)"></div>
       </div>
       <label>School / University</label>
-      <input type="text" value="${esc(e.school)}" oninput="updateEdu(${ei}, 'school', this.value)">
+      <input type="text" placeholder="e.g. State University" value="${esc(e.school)}" oninput="updateEdu(${ei}, 'school', this.value)">
     </div>`;
   });
   html += `<button class="add" onclick="addEdu()">+ Add education entry</button></div>`;
 
-  html += `<div class="card"><h2>Awards</h2>`;
+  html += `<div class="card">${cardHeading("awards")}`;
   d.awards.forEach((a, ai) => {
     html += `<div class="link-row">
-      <input type="text" value="${esc(a)}" oninput="updateAward(${ai}, this.value)">
+      <input type="text" placeholder="e.g. &quot;Employee of the Year&quot; — Acme Corp (2024)" value="${esc(a)}" oninput="updateAward(${ai}, this.value)">
       <button class="small danger" onclick="removeAward(${ai})">✕</button>
     </div>`;
   });
@@ -324,11 +406,16 @@ function isSafeHref(url) {
 function pvSection(title, innerHtml) {
   return `<div class="pv-section"><h2 class="pv-heading">${escHtml(title)}</h2>${innerHtml}</div>`;
 }
+function sectionTitle(d, key) {
+  const custom = d.sectionTitles && d.sectionTitles[key];
+  return (custom && custom.trim()) || DEFAULT_SECTION_TITLES[key];
+}
 
 function renderPreview() {
   const d = resumeData;
   const container = document.getElementById("resumePreview");
   if (!container) return;
+  container.dataset.template = TEMPLATES[d.template] ? d.template : DEFAULT_TEMPLATE;
 
   const hasAnything = d.name || d.title || d.summary ||
     d.skills.length || d.experience.length || d.projects.length ||
@@ -362,7 +449,7 @@ function renderPreview() {
   }
 
   if (d.summary && d.summary.trim()) {
-    html += pvSection("Professional Summary", `<p class="pv-body">${escHtml(d.summary)}</p>`);
+    html += pvSection(sectionTitle(d, "summary"), `<p class="pv-body">${escHtml(d.summary)}</p>`);
   }
 
   const validSkills = d.skills.filter((s) => (s.label && s.label.trim()) || (s.items && s.items.trim()));
@@ -370,7 +457,7 @@ function renderPreview() {
     const inner = validSkills.map((s) =>
       `<p class="pv-skill"><strong>${escHtml(s.label)}:</strong> ${escHtml(s.items)}</p>`
     ).join("");
-    html += pvSection("Core Skills", inner);
+    html += pvSection(sectionTitle(d, "skills"), inner);
   }
 
   const validExperience = d.experience.filter((job) => job.title && job.title.trim());
@@ -386,7 +473,7 @@ function renderPreview() {
       e += `</div>`;
       return e;
     }).join("");
-    html += pvSection("Professional Experience", inner);
+    html += pvSection(sectionTitle(d, "experience"), inner);
   }
 
   const validProjects = d.projects.filter((p) => p.name && p.name.trim());
@@ -407,7 +494,7 @@ function renderPreview() {
       line += escHtml(p.description || "");
       return `<p class="pv-body">${line}</p>`;
     }).join("");
-    html += pvSection("Live Projects", inner);
+    html += pvSection(sectionTitle(d, "projects"), inner);
   }
 
   const validEducation = d.education.filter((e) => e.degree && e.degree.trim());
@@ -421,13 +508,13 @@ function renderPreview() {
       block += `</div>`;
       return block;
     }).join("");
-    html += pvSection("Education", inner);
+    html += pvSection(sectionTitle(d, "education"), inner);
   }
 
   const validAwards = (d.awards || []).filter((a) => a && a.trim());
   if (validAwards.length) {
     const inner = `<ul class="pv-awards">${validAwards.map((a) => `<li>${escHtml(a)}</li>`).join("")}</ul>`;
-    html += pvSection("Awards", inner);
+    html += pvSection(sectionTitle(d, "awards"), inner);
   }
 
   container.innerHTML = html;
@@ -443,16 +530,19 @@ function xmlEscape(s) {
 }
 
 function buildDocxBlob(data) {
+  const tpl = getTemplate(data.template);
+  const { navy, accent, grey } = tpl.colors;
   let hyperlinkRels = [];
   let relCounter = 2; // rId1 reserved for numbering.xml
 
   function run(text, opts = {}) {
-    const { bold, italic, color, size = 22, underline } = opts;
+    const { bold, italic, color, size = 22, underline, charSpacing } = opts;
     let rpr = `<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>`;
     if (bold) rpr += `<w:b/>`;
-    if (italic) rpr += `<w:i/>`;
+    if (italic && !tpl.noItalic) rpr += `<w:i/>`;
     if (color) rpr += `<w:color w:val="${color}"/>`;
     if (underline) rpr += `<w:u w:val="single"/>`;
+    if (charSpacing) rpr += `<w:spacing w:val="${charSpacing}"/>`;
     rpr += `<w:sz w:val="${size}"/>`;
     return `<w:r><w:rPr>${rpr}</w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r>`;
   }
@@ -461,28 +551,45 @@ function buildDocxBlob(data) {
     const id = `rId${relCounter++}`;
     hyperlinkRels.push({ id, url });
     const { size = 21 } = opts;
-    return `<w:hyperlink r:id="${id}" w:history="1"><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:i/><w:color w:val="2A5C8A"/><w:u w:val="single"/><w:sz w:val="${size}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:hyperlink>`;
+    const italicTag = tpl.noItalic ? "" : "<w:i/>";
+    return `<w:hyperlink r:id="${id}" w:history="1"><w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>${italicTag}<w:color w:val="${accent}"/><w:u w:val="single"/><w:sz w:val="${size}"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text)}</w:t></w:r></w:hyperlink>`;
   }
   function paragraph(runsXml, opts = {}) {
-    const { before, after = 150, line = 300, border, tabRight, bulleted, align } = opts;
+    const { before, after = 150, line = 300, border, leftBar, topRule, lightBottomRule, tabRight, bulleted, align, indent } = opts;
     let ppr = "<w:pPr>";
     if (align) ppr += `<w:jc w:val="${align}"/>`;
     if (bulleted) ppr += `<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>`;
     if (tabRight) ppr += `<w:tabs><w:tab w:val="right" w:pos="${tabRight}"/></w:tabs>`;
     ppr += `<w:spacing ${before !== undefined ? `w:before="${before}" ` : ""}w:after="${after}" w:line="${line}" w:lineRule="auto"/>`;
-    if (border) ppr += `<w:pBdr><w:bottom w:val="single" w:sz="8" w:space="2" w:color="2A5C8A"/></w:pBdr>`;
+    if (border) ppr += `<w:pBdr><w:bottom w:val="single" w:sz="8" w:space="2" w:color="${accent}"/></w:pBdr>`;
+    if (leftBar) ppr += `<w:pBdr><w:left w:val="single" w:sz="24" w:space="8" w:color="${accent}"/></w:pBdr>`;
+    if (topRule) ppr += `<w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="E3E3E3"/></w:pBdr>`;
+    if (lightBottomRule) ppr += `<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="8" w:color="E3E3E3"/></w:pBdr>`;
+    if (indent) ppr += `<w:ind w:left="${indent}"/>`;
     ppr += "</w:pPr>";
     return `<w:p>${ppr}${runsXml}</w:p>`;
   }
   function sectionHeading(text) {
-    return paragraph(run(text.toUpperCase(), { bold: true, size: 24, color: "2A5C8A" }), { before: 340, after: 160, border: true });
+    const upper = text.toUpperCase();
+    if (tpl.heading === "bar") {
+      return paragraph(run(upper, { bold: true, size: 24, color: accent }), { before: 340, after: 160, leftBar: true, indent: 160 });
+    }
+    if (tpl.heading === "plain") {
+      return paragraph(run(upper, { bold: true, size: 22, color: accent, charSpacing: 40 }), { before: 420, after: 180, topRule: true });
+    }
+    return paragraph(run(upper, { bold: true, size: 24, color: accent }), { before: 340, after: 160, border: true });
   }
 
   const TAB_RIGHT = 10632; // ~7.3in usable width in twips
+  const headerAlign = tpl.align === "center" ? "center" : undefined;
 
   let body = "";
-  body += paragraph(run(data.name, { bold: true, size: 44, color: "1F2937" }), { after: 90, align: "center" });
-  body += paragraph(run(data.title, { bold: true, size: 27, color: "2A5C8A" }), { after: 200, align: "center" });
+  body += paragraph(run(data.name, { bold: true, size: 44, color: navy }), { after: 90, align: headerAlign });
+  const titleText = tpl.titleStyle === "caps" ? (data.title || "").toUpperCase() : data.title;
+  const titleOpts = tpl.titleStyle === "caps"
+    ? { bold: true, size: 20, color: accent, charSpacing: 30 }
+    : { bold: true, size: 27, color: accent };
+  body += paragraph(run(titleText, titleOpts), { after: 200, align: headerAlign });
 
   const plainContact = getContactLineParts(data);
   const linkContact = getContactLinkParts(data);
@@ -492,79 +599,79 @@ function buildDocxBlob(data) {
   if (contactSegments.length) {
     let contact = "";
     contactSegments.forEach((seg, idx) => {
-      contact += seg.url ? hyperlinkRun(seg.text, seg.url) : run(seg.text, { size: 21, color: "444444" });
-      if (idx < contactSegments.length - 1) contact += run("  |  ", { size: 21, color: "444444" });
+      contact += seg.url ? hyperlinkRun(seg.text, seg.url) : run(seg.text, { size: 21, color: grey });
+      if (idx < contactSegments.length - 1) contact += run("  |  ", { size: 21, color: grey });
     });
-    body += paragraph(contact, { after: 260, align: "center" });
+    body += paragraph(contact, { after: tpl.headerRule ? 320 : 260, align: headerAlign, lightBottomRule: tpl.headerRule });
   }
 
   if (data.summary && data.summary.trim()) {
-    body += sectionHeading("Professional Summary");
-    body += paragraph(run(data.summary, { size: 22, color: "444444" }), { after: 180 });
+    body += sectionHeading(sectionTitle(data, "summary"));
+    body += paragraph(run(data.summary, { size: 22, color: grey }), { after: 180 });
   }
 
   const validSkills = data.skills.filter((s) => (s.label && s.label.trim()) || (s.items && s.items.trim()));
   if (validSkills.length) {
-    body += sectionHeading("Core Skills");
+    body += sectionHeading(sectionTitle(data, "skills"));
     validSkills.forEach((s) => {
-      const r = run(`${s.label}: `, { bold: true, size: 22, color: "1F2937" }) + run(s.items, { size: 22, color: "444444" });
+      const r = run(`${s.label}: `, { bold: true, size: 22, color: navy }) + run(s.items, { size: 22, color: grey });
       body += paragraph(r, { after: 160 });
     });
   }
 
   const validExperience = data.experience.filter((job) => job.title && job.title.trim());
   if (validExperience.length) {
-    body += sectionHeading("Professional Experience");
+    body += sectionHeading(sectionTitle(data, "experience"));
     validExperience.forEach((job) => {
-      const titleLine = run(job.title, { bold: true, size: 23, color: "1F2937" }) + tabRun() + run(job.dates || "", { italic: true, size: 21, color: "444444" });
+      const titleLine = run(job.title, { bold: true, size: 23, color: navy }) + tabRun() + run(job.dates || "", { italic: true, size: 21, color: grey });
       body += paragraph(titleLine, { before: 260, after: 50, tabRight: TAB_RIGHT });
       if (job.company && job.company.trim()) {
-        body += paragraph(run(job.company, { italic: true, size: 22, color: "2A5C8A" }), { after: 150 });
+        body += paragraph(run(job.company, { italic: true, size: 22, color: accent }), { after: 150 });
       }
       (job.bullets || []).filter((b) => b && b.trim()).forEach((b) => {
-        body += paragraph(run(b, { size: 22, color: "444444" }), { after: 130, bulleted: true });
+        body += paragraph(run(b, { size: 22, color: grey }), { after: 130, bulleted: true });
       });
     });
   }
 
   const validProjects = data.projects.filter((p) => p.name && p.name.trim());
   if (validProjects.length) {
-    body += sectionHeading("Live Projects");
+    body += sectionHeading(sectionTitle(data, "projects"));
     validProjects.forEach((p) => {
-      let r = run(p.name, { bold: true, size: 22, color: "1F2937" });
+      let r = run(p.name, { bold: true, size: 22, color: navy });
       const links = (p.links || []).filter((l) => (l.label && l.label.trim()) || (l.url && l.url.trim()));
       if (links.length) {
-        r += run("  —  ", { italic: true, size: 21, color: "444444" });
+        r += run("  —  ", { italic: true, size: 21, color: grey });
         links.forEach((l, idx) => {
-          r += l.url && l.url.trim() ? hyperlinkRun(l.label || l.url, l.url.trim()) : run(l.label, { italic: true, size: 21, color: "444444" });
-          if (idx < links.length - 1) r += run(" & ", { italic: true, size: 21, color: "444444" });
+          r += l.url && l.url.trim() ? hyperlinkRun(l.label || l.url, l.url.trim()) : run(l.label, { italic: true, size: 21, color: grey });
+          if (idx < links.length - 1) r += run(" & ", { italic: true, size: 21, color: grey });
         });
-        r += run(":  ", { italic: true, size: 21, color: "444444" });
+        r += run(":  ", { italic: true, size: 21, color: grey });
       } else {
-        r += run("  —  ", { italic: true, size: 21, color: "444444" });
+        r += run("  —  ", { italic: true, size: 21, color: grey });
       }
-      r += run(p.description || "", { size: 22, color: "444444" });
+      r += run(p.description || "", { size: 22, color: grey });
       body += paragraph(r, { after: 150 });
     });
   }
 
   const validEducation = data.education.filter((e) => e.degree && e.degree.trim());
   if (validEducation.length) {
-    body += sectionHeading("Education");
+    body += sectionHeading(sectionTitle(data, "education"));
     validEducation.forEach((e) => {
-      const degLine = run(e.degree, { bold: true, size: 22, color: "1F2937" }) + tabRun() + run(e.dates || "", { size: 21, color: "444444" });
+      const degLine = run(e.degree, { bold: true, size: 22, color: navy }) + tabRun() + run(e.dates || "", { size: 21, color: grey });
       body += paragraph(degLine, { after: 30, tabRight: TAB_RIGHT });
       if (e.school && e.school.trim()) {
-        body += paragraph(run(e.school, { italic: true, size: 21, color: "444444" }), { after: 150 });
+        body += paragraph(run(e.school, { italic: true, size: 21, color: grey }), { after: 150 });
       }
     });
   }
 
   const validAwards = (data.awards || []).filter((a) => a && a.trim());
   if (validAwards.length) {
-    body += sectionHeading("Awards");
+    body += sectionHeading(sectionTitle(data, "awards"));
     validAwards.forEach((a) => {
-      body += paragraph(run(a, { size: 22, color: "444444" }), { after: 130, bulleted: true });
+      body += paragraph(run(a, { size: 22, color: grey }), { after: 130, bulleted: true });
     });
   }
 
@@ -602,14 +709,27 @@ function buildPdfBlob(data) {
   const contentWidth = pageWidth - marginX * 2;
   let y = 50;
 
-  const NAVY = [31, 41, 55], ACCENT = [42, 92, 138], GREY = [68, 68, 68];
+  const tpl = getTemplate(data.template);
+  const NAVY = hexToRgb(tpl.colors.navy), ACCENT = hexToRgb(tpl.colors.accent), GREY = hexToRgb(tpl.colors.grey);
+  const RULE = [227, 227, 227];
+  const italicStyle = tpl.noItalic ? "normal" : "italic";
   const setColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
   function ensureSpace(h) { if (y + h > pageHeight - 40) { doc.addPage(); y = 50; } }
 
+  const headerAlign = tpl.align === "center" ? "center" : "left";
+  const headerX = tpl.align === "center" ? pageWidth / 2 : marginX;
+
   doc.setFont("helvetica", "bold"); doc.setFontSize(20); setColor(NAVY);
-  doc.text(data.name, pageWidth / 2, y, { align: "center" }); y += 20;
-  doc.setFontSize(13); setColor(ACCENT);
-  doc.text(data.title, pageWidth / 2, y, { align: "center" }); y += 18;
+  doc.text(data.name, headerX, y, { align: headerAlign }); y += 20;
+  const titleText = tpl.titleStyle === "caps" ? (data.title || "").toUpperCase() : data.title;
+  if (tpl.titleStyle === "caps") {
+    doc.setFontSize(10.5); setColor(ACCENT);
+    doc.text(titleText, headerX, y, { align: headerAlign, charSpace: 1.1 });
+  } else {
+    doc.setFontSize(13); setColor(ACCENT);
+    doc.text(titleText, headerX, y, { align: headerAlign });
+  }
+  y += 18;
 
   const plainContactPdf = getContactLineParts(data);
   const linkContactPdf = getContactLinkParts(data);
@@ -620,12 +740,17 @@ function buildPdfBlob(data) {
   if (pdfSegments.length) {
     doc.setFont("helvetica", "normal"); doc.setFontSize(10);
     const sep = "   |   ";
-    let totalWidth = 0;
-    pdfSegments.forEach((s, idx) => {
-      totalWidth += doc.getTextWidth(s.text);
-      if (idx < pdfSegments.length - 1) totalWidth += doc.getTextWidth(sep);
-    });
-    let cx = pageWidth / 2 - totalWidth / 2;
+    let cx;
+    if (tpl.align === "center") {
+      let totalWidth = 0;
+      pdfSegments.forEach((s, idx) => {
+        totalWidth += doc.getTextWidth(s.text);
+        if (idx < pdfSegments.length - 1) totalWidth += doc.getTextWidth(sep);
+      });
+      cx = pageWidth / 2 - totalWidth / 2;
+    } else {
+      cx = marginX;
+    }
     pdfSegments.forEach((s, idx) => {
       if (s.url) { setColor(ACCENT); doc.textWithLink(s.text, cx, y, { url: s.url }); }
       else { setColor(GREY); doc.text(s.text, cx, y); }
@@ -635,14 +760,35 @@ function buildPdfBlob(data) {
     y += 24;
   }
 
+  if (tpl.headerRule) {
+    doc.setDrawColor(RULE[0], RULE[1], RULE[2]);
+    doc.line(marginX, y, pageWidth - marginX, y);
+    y += 18;
+  }
+
   function sectionHeading(title) {
     ensureSpace(30);
-    doc.setFont("helvetica", "bold"); doc.setFontSize(12); setColor(ACCENT);
-    doc.text(title.toUpperCase(), marginX, y);
-    y += 4;
-    doc.setDrawColor(ACCENT[0], ACCENT[1], ACCENT[2]);
-    doc.line(marginX, y, pageWidth - marginX, y);
-    y += 15;
+    const upper = title.toUpperCase();
+    if (tpl.heading === "bar") {
+      doc.setFillColor(ACCENT[0], ACCENT[1], ACCENT[2]);
+      doc.rect(marginX, y - 9, 3, 12, "F");
+      doc.setFont("helvetica", "bold"); doc.setFontSize(12); setColor(ACCENT);
+      doc.text(upper, marginX + 9, y);
+      y += 15;
+    } else if (tpl.heading === "plain") {
+      doc.setDrawColor(RULE[0], RULE[1], RULE[2]);
+      doc.line(marginX, y - 13, pageWidth - marginX, y - 13);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(ACCENT);
+      doc.text(upper, marginX, y, { charSpace: 1.3 });
+      y += 15;
+    } else {
+      doc.setFont("helvetica", "bold"); doc.setFontSize(12); setColor(ACCENT);
+      doc.text(upper, marginX, y);
+      y += 4;
+      doc.setDrawColor(ACCENT[0], ACCENT[1], ACCENT[2]);
+      doc.line(marginX, y, pageWidth - marginX, y);
+      y += 15;
+    }
   }
   function bodyText(text) {
     doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); setColor(GREY);
@@ -657,14 +803,14 @@ function buildPdfBlob(data) {
   }
 
   if (data.summary && data.summary.trim()) {
-    sectionHeading("Professional Summary");
+    sectionHeading(sectionTitle(data, "summary"));
     bodyText(data.summary);
     y += 8;
   }
 
   const validSkillsPdf = data.skills.filter((s) => (s.label && s.label.trim()) || (s.items && s.items.trim()));
   if (validSkillsPdf.length) {
-    sectionHeading("Core Skills");
+    sectionHeading(sectionTitle(data, "skills"));
     validSkillsPdf.forEach((s) => {
       ensureSpace(14);
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
@@ -681,16 +827,16 @@ function buildPdfBlob(data) {
 
   const validExperiencePdf = data.experience.filter((job) => job.title && job.title.trim());
   if (validExperiencePdf.length) {
-    sectionHeading("Professional Experience");
+    sectionHeading(sectionTitle(data, "experience"));
     validExperiencePdf.forEach((job) => {
       ensureSpace(30);
       doc.setFont("helvetica", "bold"); doc.setFontSize(11); setColor(NAVY);
       doc.text(job.title, marginX, y);
-      doc.setFont("helvetica", "italic"); doc.setFontSize(10); setColor(GREY);
+      doc.setFont("helvetica", italicStyle); doc.setFontSize(10); setColor(GREY);
       doc.text(job.dates || "", pageWidth - marginX, y, { align: "right" });
       y += 14;
       if (job.company && job.company.trim()) {
-        doc.setFont("helvetica", "italic"); doc.setFontSize(10.5); setColor(ACCENT);
+        doc.setFont("helvetica", italicStyle); doc.setFontSize(10.5); setColor(ACCENT);
         doc.text(job.company, marginX, y);
         y += 14;
       }
@@ -701,7 +847,7 @@ function buildPdfBlob(data) {
 
   const validProjectsPdf = data.projects.filter((p) => p.name && p.name.trim());
   if (validProjectsPdf.length) {
-    sectionHeading("Live Projects");
+    sectionHeading(sectionTitle(data, "projects"));
     validProjectsPdf.forEach((p) => {
       ensureSpace(14);
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
@@ -709,7 +855,7 @@ function buildPdfBlob(data) {
       let xCursor = marginX + doc.getTextWidth(p.name);
       const links = (p.links || []).filter((l) => (l.label && l.label.trim()) || (l.url && l.url.trim()));
       if (links.length) {
-        doc.setFont("helvetica", "italic"); setColor(GREY);
+        doc.setFont("helvetica", italicStyle); setColor(GREY);
         const dash = "  —  ";
         doc.text(dash, xCursor, y); xCursor += doc.getTextWidth(dash);
         links.forEach((l, idx) => {
@@ -720,7 +866,7 @@ function buildPdfBlob(data) {
         });
         setColor(GREY); doc.text(":", xCursor, y);
       } else {
-        doc.setFont("helvetica", "italic"); setColor(GREY);
+        doc.setFont("helvetica", italicStyle); setColor(GREY);
         doc.text("  —", xCursor, y);
       }
       y += 13;
@@ -731,7 +877,7 @@ function buildPdfBlob(data) {
 
   const validEducationPdf = data.education.filter((e) => e.degree && e.degree.trim());
   if (validEducationPdf.length) {
-    sectionHeading("Education");
+    sectionHeading(sectionTitle(data, "education"));
     validEducationPdf.forEach((e) => {
       ensureSpace(26);
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(NAVY);
@@ -740,7 +886,7 @@ function buildPdfBlob(data) {
       doc.text(e.dates || "", pageWidth - marginX, y, { align: "right" });
       y += 13;
       if (e.school && e.school.trim()) {
-        doc.setFont("helvetica", "italic"); doc.setFontSize(10); setColor(GREY);
+        doc.setFont("helvetica", italicStyle); doc.setFontSize(10); setColor(GREY);
         doc.text(e.school, marginX, y);
         y += 16;
       } else {
@@ -751,7 +897,7 @@ function buildPdfBlob(data) {
 
   const validAwardsPdf = (data.awards || []).filter((a) => a && a.trim());
   if (validAwardsPdf.length) {
-    sectionHeading("Awards");
+    sectionHeading(sectionTitle(data, "awards"));
     validAwardsPdf.forEach((a) => bulletText(a));
   }
 

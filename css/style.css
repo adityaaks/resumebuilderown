@@ -219,6 +219,22 @@ header p {
   min-height: 300px;
   font-family: var(--font-doc);
   color: var(--grey);
+  /* Per-template palette, scoped to the sheet so each template can swap
+     these three colors without touching the pv-* rules below. */
+  --pv-navy: var(--navy);
+  --pv-accent: var(--accent);
+  --pv-grey: var(--grey);
+}
+.preview-sheet[data-template="modern"] {
+  --pv-navy: #16233A;
+  --pv-accent: #0D9488;
+  --pv-grey: #3F3F46;
+}
+.preview-sheet[data-template="minimal"] {
+  --pv-navy: #1A1A1A;
+  --pv-accent: #55606B;
+  --pv-grey: #3D4148;
+  --pv-rule: #E3E3E3;
 }
 
 .preview-empty {
@@ -236,12 +252,12 @@ header p {
 .preview-empty p { margin: 0; font-size: 13.5px; max-width: 300px; }
 
 /* Resume preview typography — deliberately mirrors the PDF/DOCX generators
-   (same Arial/Helvetica stack, same navy/accent/grey palette, same
-   bold/italic choices) rather than being a separately-styled reinterpretation. */
+   (same Arial/Helvetica stack, same palette, same bold/italic choices per
+   template) rather than being a separately-styled reinterpretation. */
 .pv-name {
   font-weight: 700;
   font-size: 24px;
-  color: var(--navy);
+  color: var(--pv-navy);
   text-align: center;
   margin: 0 0 6px;
 }
@@ -249,21 +265,49 @@ header p {
   text-align: center;
   font-weight: 400;
   font-size: 15px;
-  color: var(--accent);
+  color: var(--pv-accent);
   margin: 0 0 8px;
 }
 .pv-contact {
   text-align: center;
   font-size: 11.5px;
-  color: var(--grey);
+  color: var(--pv-grey);
   margin: 0 0 18px;
   display: flex;
   justify-content: center;
   flex-wrap: wrap;
   gap: 6px;
 }
-.pv-contact a { color: var(--accent); text-decoration: none; }
-.pv-sep { color: var(--grey); margin: 0 2px; }
+.pv-contact a { color: var(--pv-accent); text-decoration: none; }
+.pv-sep { color: var(--pv-grey); margin: 0 2px; }
+
+/* Modern / Minimal: left-aligned header instead of centered */
+.preview-sheet[data-template="modern"] .pv-name,
+.preview-sheet[data-template="modern"] .pv-title,
+.preview-sheet[data-template="modern"] .pv-contact,
+.preview-sheet[data-template="minimal"] .pv-name,
+.preview-sheet[data-template="minimal"] .pv-title,
+.preview-sheet[data-template="minimal"] .pv-contact {
+  text-align: left;
+  justify-content: flex-start;
+}
+.preview-sheet[data-template="minimal"] .pv-name { font-weight: 700; letter-spacing: 0.01em; }
+.preview-sheet[data-template="minimal"] .pv-title {
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.09em;
+}
+.preview-sheet[data-template="minimal"] .pv-contact {
+  border-bottom: 1px solid var(--pv-rule);
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.preview-sheet[data-template="minimal"] .pv-entry-dates,
+.preview-sheet[data-template="minimal"] .pv-entry-sub,
+.preview-sheet[data-template="minimal"] .pv-project-links {
+  font-style: normal;
+}
 
 .pv-section { margin-top: 16px; }
 .pv-section:first-of-type { margin-top: 0; }
@@ -271,14 +315,32 @@ header p {
   font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--accent);
-  border-bottom: 1.5px solid var(--accent);
+  color: var(--pv-accent);
+  border-bottom: 1.5px solid var(--pv-accent);
   padding-bottom: 4px;
   margin: 0 0 9px;
 }
-.pv-body { font-size: 12.5px; line-height: 1.5; margin: 0 0 4px; color: var(--grey); }
-.pv-skill { font-size: 12.5px; line-height: 1.5; margin: 0 0 6px; color: var(--grey); }
-.pv-skill strong { color: var(--navy); font-weight: 700; }
+/* Modern: a left accent bar instead of an underline */
+.preview-sheet[data-template="modern"] .pv-heading {
+  border-bottom: none;
+  border-left: 3px solid var(--pv-accent);
+  padding: 2px 0 2px 9px;
+}
+/* Minimal: a quiet hairline above each heading instead of a bold underline,
+   with extra breathing room so the rule reads as structure, not clutter. */
+.preview-sheet[data-template="minimal"] .pv-section { margin-top: 26px; }
+.preview-sheet[data-template="minimal"] .pv-section:first-of-type { margin-top: 0; }
+.preview-sheet[data-template="minimal"] .pv-heading {
+  border-bottom: none;
+  border-top: 1px solid var(--pv-rule);
+  padding: 11px 0 0;
+  margin: 0 0 11px;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+}
+.pv-body { font-size: 12.5px; line-height: 1.5; margin: 0 0 4px; color: var(--pv-grey); }
+.pv-skill { font-size: 12.5px; line-height: 1.5; margin: 0 0 6px; color: var(--pv-grey); }
+.pv-skill strong { color: var(--pv-navy); font-weight: 700; }
 
 .pv-entry { margin-bottom: 13px; }
 .pv-entry:last-child { margin-bottom: 0; }
@@ -288,20 +350,20 @@ header p {
   align-items: baseline;
   gap: 10px;
 }
-.pv-entry-title { font-weight: 700; font-size: 13px; color: var(--navy); }
-.pv-entry-dates { font-size: 11.5px; color: var(--grey); font-style: italic; white-space: nowrap; }
+.pv-entry-title { font-weight: 700; font-size: 13px; color: var(--pv-navy); }
+.pv-entry-dates { font-size: 11.5px; color: var(--pv-grey); font-style: italic; white-space: nowrap; }
 .pv-entry-dates.plain { font-style: normal; }
-.pv-entry-sub { margin: 2px 0 6px; font-size: 12.5px; font-style: italic; color: var(--accent); }
+.pv-entry-sub { margin: 2px 0 6px; font-size: 12.5px; font-style: italic; color: var(--pv-accent); }
 .pv-bullets { margin: 0; padding-left: 16px; }
-.pv-bullets li { font-size: 12.5px; line-height: 1.5; margin-bottom: 3px; color: var(--grey); }
-.pv-bullets li::marker { color: var(--grey); }
+.pv-bullets li { font-size: 12.5px; line-height: 1.5; margin-bottom: 3px; color: var(--pv-grey); }
+.pv-bullets li::marker { color: var(--pv-grey); }
 
-.pv-project-links { font-style: italic; color: var(--grey); }
-.pv-project-links a { color: var(--accent); }
+.pv-project-links { font-style: italic; color: var(--pv-grey); }
+.pv-project-links a { color: var(--pv-accent); }
 
 .pv-awards { margin: 0; padding-left: 16px; }
-.pv-awards li { font-size: 12.5px; line-height: 1.5; margin-bottom: 3px; color: var(--grey); }
-.pv-awards li::marker { color: var(--grey); }
+.pv-awards li { font-size: 12.5px; line-height: 1.5; margin-bottom: 3px; color: var(--pv-grey); }
+.pv-awards li::marker { color: var(--pv-grey); }
 
 /* ==========================================================================
    Modal
@@ -432,6 +494,27 @@ header p {
   gap: 8px;
   font-weight: 700;
 }
+/* Section titles (Education, Live Projects, etc.) are editable in place —
+   styled to look identical to a static h2 until the user hovers/focuses it. */
+.card-title-input {
+  flex: 1;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: text;
+  border-radius: 3px;
+  transition: background 0.12s ease;
+}
+.card-title-input::placeholder { color: inherit; opacity: 1; }
+.card-title-input:hover { background: rgba(42, 92, 138, 0.06); }
+.card-title-input:focus { background: rgba(42, 92, 138, 0.1); }
 label {
   display: block;
   font-size: 12px;
@@ -536,6 +619,40 @@ button.add:hover { background: #EEF3F8; border-style: solid; }
   margin-top: 10px;
   line-height: 1.5;
 }
+
+/* ==========================================================================
+   Template picker
+========================================================================== */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+.template-option {
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  background: #fff;
+  text-align: left;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.template-option:hover { border-color: #c7d1db; }
+.template-option.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(42, 92, 138, 0.14);
+}
+.template-swatch { display: flex; gap: 5px; margin-bottom: 9px; }
+.template-swatch span {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  display: inline-block;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+.template-name { font-size: 13px; font-weight: 700; color: var(--navy); }
+.template-desc { font-size: 11.5px; color: #8894a0; margin-top: 2px; }
 
 footer {
   text-align: center;
