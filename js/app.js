@@ -580,7 +580,7 @@ function buildDocxBlob(data) {
     return paragraph(run(upper, { bold: true, size: 24, color: accent }), { before: 340, after: 160, border: true });
   }
 
-  const TAB_RIGHT = 10632; // ~7.3in usable width in twips
+  const TAB_RIGHT = 9360; // usable width in twips: 12240 page width - 1440 (1in) margin each side
   const headerAlign = tpl.align === "center" ? "center" : undefined;
 
   let body = "";
@@ -675,7 +675,7 @@ function buildDocxBlob(data) {
     });
   }
 
-  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="750" w:right="850" w:bottom="750" w:left="850" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>`;
+  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>`;
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body}${sectPr}</w:body></w:document>`;
 
   const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>`;
@@ -705,16 +705,16 @@ function buildDocxBlob(data) {
 function buildPdfBlob(data) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
-  const marginX = 42, pageWidth = 612, pageHeight = 792;
+  const marginX = 60, marginTop = 64, marginBottom = 56, pageWidth = 612, pageHeight = 792;
   const contentWidth = pageWidth - marginX * 2;
-  let y = 50;
+  let y = marginTop;
 
   const tpl = getTemplate(data.template);
   const NAVY = hexToRgb(tpl.colors.navy), ACCENT = hexToRgb(tpl.colors.accent), GREY = hexToRgb(tpl.colors.grey);
   const RULE = [227, 227, 227];
   const italicStyle = tpl.noItalic ? "normal" : "italic";
   const setColor = (rgb) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
-  function ensureSpace(h) { if (y + h > pageHeight - 40) { doc.addPage(); y = 50; } }
+  function ensureSpace(h) { if (y + h > pageHeight - marginBottom) { doc.addPage(); y = marginTop; } }
 
   const headerAlign = tpl.align === "center" ? "center" : "left";
   const headerX = tpl.align === "center" ? pageWidth / 2 : marginX;
@@ -767,7 +767,12 @@ function buildPdfBlob(data) {
   }
 
   function sectionHeading(title) {
-    ensureSpace(30);
+    ensureSpace(46);
+    // Consistent breathing room before every heading, independent of whatever
+    // gap the previous section happened to leave — avoids rules/text landing
+    // right on top of the previous line (a real bug when this was computed
+    // by looking backward from the heading's own position instead).
+    y += 12;
     const upper = title.toUpperCase();
     if (tpl.heading === "bar") {
       doc.setFillColor(ACCENT[0], ACCENT[1], ACCENT[2]);
@@ -777,7 +782,8 @@ function buildPdfBlob(data) {
       y += 15;
     } else if (tpl.heading === "plain") {
       doc.setDrawColor(RULE[0], RULE[1], RULE[2]);
-      doc.line(marginX, y - 13, pageWidth - marginX, y - 13);
+      doc.line(marginX, y, pageWidth - marginX, y);
+      y += 14;
       doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); setColor(ACCENT);
       doc.text(upper, marginX, y, { charSpace: 1.3 });
       y += 15;
